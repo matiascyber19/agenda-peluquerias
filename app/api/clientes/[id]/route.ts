@@ -18,15 +18,34 @@ export async function GET(
     const supabase = await createClient()
 
     // 1. Verificar sesión
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'No autenticado' },
+        { status: 401 }
+      )
     }
 
-    // 2. Datos del cliente
+    // 2. Obtener datos del cliente
+    // RLS impide consultar clientes de otra peluquería
     const { data: cliente, error: clienteError } = await supabase
       .from('clientes')
-      .select('*')
+      .select(`
+        id,
+        nombre,
+        telefono,
+        email,
+        cumpleanos,
+        como_llego,
+        notas,
+        foto_url,
+        bloqueado,
+        creado_en
+      `)
       .eq('id', id)
       .single()
 
@@ -37,8 +56,8 @@ export async function GET(
       )
     }
 
-    // 3. Historial de citas (últimas 20)
-    const { data: citas } = await supabase
+    // 3. Historial visible de citas, últimas 20
+    const { data: citas, error: citasError } = await supabase
       .from('citas')
       .select(`
         id,
@@ -46,38 +65,132 @@ export async function GET(
         fin,
         estado,
         notas,
-        peluqueros ( nombre ),
+        peluqueros (
+          id,
+          nombre
+        ),
         cita_servicios (
           precio_congelado_clp,
-          servicios ( nombre )
+          duracion_congelada_min,
+          servicios (
+            id,
+            nombre
+          )
         )
       `)
       .eq('cliente_id', id)
       .order('inicio', { ascending: false })
       .limit(20)
 
-    // 4. Historial de ventas (últimas 20)
-    const { data: ventas } = await supabase
+    if (citasError) {
+      return NextResponse.json(
+        { error: `Error al cargar citas: ${citasError.message}` },
+        { status: 500 }
+      )
+    }
+
+    // 4. Historial visible de ventas, últimas 20
+    const { data: ventas, error: ventasError } = await supabase
       .from('ventas')
       .select(`
         id,
         total_clp,
         medio_pago,
         fecha,
-        peluqueros ( nombre ),
-        venta_items ( nombre, cantidad, subtotal_clp )
+        peluqueros (
+          id,
+          nombre
+        ),
+        venta_items (
+          id,
+          tipo,
+          nombre,
+          cantidad,
+          precio_unitario_clp,
+          subtotal_clp
+        )
       `)
       .eq('cliente_id', id)
       .order('fecha', { ascending: false })
       .limit(20)
 
-    // 5. Estadísticas
-    const totalCitas = citas?.length || 0
-    const noShows = citas?.filter(c => c.estado === 'no_show').length || 0
-    const completadas = citas?.filter(c => c.estado === 'completada').length || 0
-    const gastoTotal = ventas?.reduce((sum, v) => sum + (v.total_clp || 0), 0) || 0
-    const ultimaVisita = citas?.find(c => c.estado === 'completada')?.inicio || null
+    if (ventasError) {
+      return NextResponse.json(
+        { error: `Error al cargar ventas: ${ventasError.message}` },
+        { status: 500 }
+      )
+    }
 
+    // 5. Consultar TODAS las citas necesarias para estadísticas
+    const { data: citasEstadisticas, error: citasEstadisticasError } =
+      await supabase
+        .from('citas')
+        .select('inicio, estado')
+        .eq('cliente_id', id)
+
+    if (citasEstadisticasError) {
+      return NextResponse.json(
+        {
+          error: `Error al calcular estadísticas de citas: ${citasEstadisticasError.message}`,
+        },
+        { status: 500 }
+      )
+    }
+
+    // 6. Consultar TODAS las ventas necesarias para gasto total
+    const { data: ventasEstadisticas, error: ventasEstadisticasError } =
+      await supabase
+        .from('ventas')
+        .select('total_clp')
+        .eq('cliente_id', id)
+
+    if (ventasEstadisticasError) {
+      return NextResponse.json(
+        {
+          error: `Error al calcular estadísticas de ventas: ${ventasEstadisticasError.message}`,
+        },
+        { status: 500 }
+      )
+    }
+
+    const todasLasCitas = citasEstadisticas || []
+    const todasLasVentas = ventasEstadisticas || []
+
+    const totalCitas = todasLasCitas.length
+
+    const completadas = todasLasCitas.filter(
+      (cita) => cita.estado === 'completada'
+    ).length
+
+    const canceladas = todasLasCitas.filter(
+      (cita) => cita.estado === 'cancelada'
+    ).length
+
+    const noShows = todasLasCitas.filter(
+      (cita) => cita.estado === 'no_show'
+    ).length
+
+    const gastoTotal = todasLasVentas.reduce(
+      (total, venta) => total + (venta.total_clp || 0),
+      0
+    )
+
+    const visitasCompletadas = todasLasCitas
+      .filter((cita) => cita.estado === 'completada')
+      .sort(
+        (a, b) =>
+          new Date(b.inicio).getTime() -
+          new Date(a.inicio).getTime()
+      )
+
+    const ultimaVisita = visitasCompletadas[0]?.inicio || null
+
+    const promedioGasto =
+      todasLasVentas.length > 0
+        ? Math.round(gastoTotal / todasLasVentas.length)
+        : 0
+
+    // 7. Respuesta para el frontend de Mati
     return NextResponse.json({
       cliente,
       historial: {
@@ -87,13 +200,16 @@ export async function GET(
       estadisticas: {
         totalCitas,
         completadas,
+        canceladas,
         noShows,
         gastoTotal,
+        promedioGasto,
         ultimaVisita,
       },
     })
   } catch (error) {
     console.error('Error en GET /api/clientes/', error)
+
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

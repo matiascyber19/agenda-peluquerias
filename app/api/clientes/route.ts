@@ -1,13 +1,6 @@
 import { createClient } from '@/app/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
-// ============================================
-// GET /api/clientes
-// Lista clientes con filtros opcionales:
-//   ?buscar=juan          (busca por nombre o teléfono)
-//   ?bloqueado=false      (filtra por estado de bloqueo)
-//   ?limit=50             (cantidad máxima, default 100)
-// ============================================
 export async function GET(request: Request) {
   const supabase = await createClient()
 
@@ -35,7 +28,15 @@ export async function GET(request: Request) {
       como_llego,
       notas,
       bloqueado,
-      creado_en
+      creado_en,
+      citas(
+      inicio,
+      estado,
+      cita_servicios(id)
+      ),
+      ventas(
+      total_clp
+      )
     `)
     .order('nombre', { ascending: true })
     .limit(limit)
@@ -56,25 +57,35 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({
-    clientes: data,
-    total: data?.length || 0,
+  const clientes = (data || []).map((cliente: any)=>{
+    const citasCompletadas = (cliente.citas || []).filter((cita:any) => cita.estado === 'completada')
+  .sort((a: any, b:any) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime())
+  
+  const cantidadServicios = (cliente.citas || []).reduce((total: number, cita: any) => 
+    total + (cita.cita_servicios?.length || 0),0)
+
+  const gastoTotal = (cliente.ventas || []).reduce(
+    (total: number, venta: any) => total + (venta.total_clp || 0),0)
+
+    return{
+      id:cliente.id,
+      nombre:cliente.nombre,
+      telefono:cliente.telefono,
+      email:cliente.email,
+      cumpleanos:cliente.cumpleanos,
+      como_llego:cliente.como_llego,
+      notas:cliente.notas,
+      bloqueado:cliente.bloqueado,
+      creado_en:cliente.creado_en,
+      ultimaVisita: citasCompletadas[0]?.inicio || null,
+      servicios: cantidadServicios,
+      gasto: gastoTotal,
+    }
   })
+
+  return NextResponse.json({clientes, total:clientes.length,})
 }
 
-// ============================================
-// POST /api/clientes
-// Crea un cliente nuevo
-// Body esperado:
-// {
-//   nombre: "Juan Pérez",
-//   telefono: "+56912345678",  (obligatorio, clave para WhatsApp)
-//   email: "juan@mail.com",    (opcional)
-//   cumpleanos: "1990-05-15",  (opcional)
-//   como_llego: "instagram",   (opcional)
-//   notas: "prefiere degradado" (opcional)
-// }
-// ============================================
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()

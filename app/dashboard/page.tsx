@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 
 interface DashboardData {
   usuario: {
@@ -37,6 +38,7 @@ interface DashboardData {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     fetch("/api/dashboard")
@@ -153,8 +155,9 @@ export default function DashboardPage() {
           <div className="md:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-semibold text-gray-800">Citas de hoy</h2>
-              <button className="text-sm text-slate-600 hover:text-slate-900 font-medium">
-                Ver agenda →
+              <button onClick={()=> router.push("/agenda")}
+                className="text-sm text-slate-600 hover:text-slate-900 font-medium">
+                Ver Agenda →
               </button>
             </div>
             <div className="space-y-3">
@@ -198,13 +201,15 @@ export default function DashboardPage() {
               <h2 className="font-semibold text-gray-800 mb-4">Accesos rápidos</h2>
               <div className="space-y-2">
                 {[
-                  { icon: "📅", label: "Nueva cita" },
-                  { icon: "👤", label: "Nuevo cliente" },
-                  { icon: "✂️", label: "Servicios" },
-                  { icon: "📊", label: "Reportes" },
+                  { icon: "📅", label: "Nueva cita" , ruta:"/agenda"},
+                  { icon: "👤", label: "Nuevo cliente" , ruta:"/clientes"},
+                  { icon: "✂️", label: "Servicios" , ruta:""},
+                  { icon: "📊", label: "Reportes" , ruta:""},
                 ].map((item, i) => (
                   <button
                     key={i}
+                    onClick={()=>item.ruta && router.push(item.ruta)}
+                    disabled={!item.ruta}
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors text-left"
                   >
                     <span className="text-lg">{item.icon}</span>

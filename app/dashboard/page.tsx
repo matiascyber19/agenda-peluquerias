@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
+import Navbar from "../components/Navbar"
 
 interface DashboardData {
   usuario: {
@@ -33,6 +35,13 @@ interface DashboardData {
     inicio: string
   } | null
 }
+
+const accesosRapidos: { icon: string; label: string; href?: string }[] = [
+  { icon: "📅", label: "Nueva cita", href: "/agenda?nueva=1" },
+  { icon: "👤", label: "Nuevo cliente", href: "/clientes?nuevo=1" },
+  { icon: "✂️", label: "Servicios" },
+  { icon: "📊", label: "Reportes" },
+]
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -79,35 +88,11 @@ export default function DashboardPage() {
     ? Math.round((new Date(data.proximaCita.inicio).getTime() - Date.now()) / 60000)
     : null
 
-  // Cerrar sesión
-  const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" })
-    window.location.href = "/login"
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* Navbar */}
-      <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <img
-            src="/logo_agenda_peluqueria.png"
-            alt="Logo"
-            className="w-8 h-8 object-contain"
-          />
-          <span className="font-semibold text-gray-800">Agenda Peluquerías</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">{data.usuario.peluqueria}</span>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-red-500 hover:text-red-700 font-medium transition-colors"
-          >
-            Cerrar sesión
-          </button>
-        </div>
-      </nav>
+      <Navbar peluqueria={data.usuario.peluqueria} />
 
       <div className="max-w-6xl mx-auto px-6 py-8">
 
@@ -116,7 +101,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-gray-900">
             {saludo}, {data.usuario.nombre} 👋
           </h1>
-          <p className="text-gray-500 text-sm mt-1 capitalize">{hoy}</p>
+          <p className="text-gray-500 text-sm mt-1 first-letter:uppercase">{hoy}</p>
         </div>
 
         {/* Tarjetas resumen */}
@@ -153,9 +138,9 @@ export default function DashboardPage() {
           <div className="md:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-semibold text-gray-800">Citas de hoy</h2>
-              <button className="text-sm text-slate-600 hover:text-slate-900 font-medium">
+              <Link href="/agenda" className="text-sm text-slate-600 hover:text-slate-900 font-medium">
                 Ver agenda →
-              </button>
+              </Link>
             </div>
             <div className="space-y-3">
               {data.citas.length === 0 ? (
@@ -197,20 +182,27 @@ export default function DashboardPage() {
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
               <h2 className="font-semibold text-gray-800 mb-4">Accesos rápidos</h2>
               <div className="space-y-2">
-                {[
-                  { icon: "📅", label: "Nueva cita" },
-                  { icon: "👤", label: "Nuevo cliente" },
-                  { icon: "✂️", label: "Servicios" },
-                  { icon: "📊", label: "Reportes" },
-                ].map((item, i) => (
-                  <button
-                    key={i}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors text-left"
-                  >
-                    <span className="text-lg">{item.icon}</span>
-                    <span className="text-sm font-medium text-gray-700">{item.label}</span>
-                  </button>
-                ))}
+                {accesosRapidos.map((item) =>
+                  item.href ? (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors text-left"
+                    >
+                      <span className="text-lg">{item.icon}</span>
+                      <span className="text-sm font-medium text-gray-700">{item.label}</span>
+                    </Link>
+                  ) : (
+                    <div
+                      key={item.label}
+                      title="Próximamente"
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left opacity-40 cursor-not-allowed"
+                    >
+                      <span className="text-lg">{item.icon}</span>
+                      <span className="text-sm font-medium text-gray-700">{item.label}</span>
+                    </div>
+                  )
+                )}
               </div>
             </div>
 

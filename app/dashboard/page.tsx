@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import Navbar from "../components/Navbar"
 
 interface DashboardData {
@@ -39,21 +40,31 @@ interface DashboardData {
 const accesosRapidos: { icon: string; label: string; href?: string }[] = [
   { icon: "📅", label: "Nueva cita", href: "/agenda?nueva=1" },
   { icon: "👤", label: "Nuevo cliente", href: "/clientes?nuevo=1" },
-  { icon: "✂️", label: "Servicios" },
-  { icon: "📊", label: "Reportes" },
+  { icon: "✂️", label: "Servicios", href: "/servicios" },
+  { icon: "📊", label: "Reportes", href: "/reportes" },
 ]
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetch("/api/dashboard")
-      .then((res) => res.json())
-      .then((json) => setData(json))
+      .then((res) => {
+        // La sesión pudo expirar con la página abierta: el proxy solo protege la navegación.
+        if (res.status === 401) {
+          router.replace("/login")
+          return null
+        }
+        return res.json()
+      })
+      .then((json) => {
+        if (json) setData(json)
+      })
       .catch((err) => console.error("Error cargando dashboard:", err))
       .finally(() => setLoading(false))
-  }, [])
+  }, [router])
 
   if (loading) {
     return (

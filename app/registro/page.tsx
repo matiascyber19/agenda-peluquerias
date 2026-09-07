@@ -60,13 +60,13 @@ export default function RegistroPage() {
     setError('')
 
     try {
-      const res = await fetch('/api/auth/registro', {
+      const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nombrePeluqueria: nombrePeluqueria.trim(),
+          nombre_peluqueria: nombrePeluqueria.trim(),
           slug,
-          nombreDueno: nombreDueno.trim(),
+          nombre_usuario: nombreDueno.trim(),
           email: email.trim(),
           password,
         }),

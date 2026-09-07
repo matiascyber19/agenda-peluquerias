@@ -1,6 +1,46 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
 
+const ZONA = 'America/Santiago'
+
+/** Offset de la zona respecto a UTC, en ms, para ese instante (contempla horario de verano). */
+function offsetZona(instante: Date) {
+  const etiqueta = new Intl.DateTimeFormat('en-US', {
+    timeZone: ZONA,
+    timeZoneName: 'longOffset',
+  })
+    .formatToParts(instante)
+    .find((p) => p.type === 'timeZoneName')?.value
+
+  const partes = /GMT([+-])(\d{2}):(\d{2})/.exec(etiqueta ?? '')
+  if (!partes) return 0
+
+  const signo = partes[1] === '-' ? -1 : 1
+  return signo * (Number(partes[2]) * 60 + Number(partes[3])) * 60_000
+}
+
+/**
+ * Instante UTC de la medianoche en Chile.
+ * `dias` desplaza respecto de hoy; `desdeElPrimero` ancla al día 1 del mes.
+ * El servidor corre en UTC, así que calcular el día con `new Date()` local
+ * desplazaría el corte 3 o 4 horas.
+ */
+function medianocheEnChile(dias = 0, desdeElPrimero = false) {
+  const ahora = new Date()
+  const [anio, mes, dia] = new Intl.DateTimeFormat('en-CA', {
+    timeZone: ZONA,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+    .format(ahora)
+    .split('-')
+    .map(Number)
+
+  const candidato = Date.UTC(anio, mes - 1, (desdeElPrimero ? 1 : dia) + dias)
+  return new Date(candidato - offsetZona(new Date(candidato)))
+}
+
 export async function GET() {
   const supabase = await createClient()
 
@@ -21,13 +61,13 @@ export async function GET() {
     return NextResponse.json({ error: 'Usuario sin peluquería' }, { status: 403 })
   }
 
-  // 3. Rango de hoy (zona horaria Chile)
+  // 3. Rango de hoy en horario de Chile
   const now = new Date()
-  const hoyInicio = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
-  const hoyFin = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString()
+  const hoyInicio = medianocheEnChile().toISOString()
+  const hoyFin = medianocheEnChile(1).toISOString()
 
   // Primer día del mes
-  const mesInicio = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+  const mesInicio = medianocheEnChile(0, true).toISOString()
 
   // 4. Citas de hoy con cliente, peluquero y servicios
   const { data: citasHoy } = await supabase
@@ -80,7 +120,7 @@ export async function GET() {
     .in('estado', ['pendiente', 'confirmada'])
     .order('inicio', { ascending: true })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   // 9. Respuesta
   return NextResponse.json({

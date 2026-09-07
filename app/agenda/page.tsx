@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Navbar from '../components/Navbar'
+import ModalNuevaCita from '../components/ModalNuevaCita'
+import ModalDetalleCita from '../components/ModalDetalleCita'
 
 interface Cita {
   id: string
@@ -58,11 +60,28 @@ function hhmm(fecha: Date) {
   return fecha.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
+function comoFechaInput(fecha: Date) {
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0')
+  const dia = String(fecha.getDate()).padStart(2, '0')
+  return `${fecha.getFullYear()}-${mes}-${dia}`
+}
+
 export default function AgendaPage() {
   const [lunes, setLunes] = useState(() => lunesDe(new Date()))
   const [citas, setCitas] = useState<Cita[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [modalAbierto, setModalAbierto] = useState(false)
+  const [citaSeleccionada, setCitaSeleccionada] = useState<Cita | null>(null)
+  const [recarga, setRecarga] = useState(0)
+
+  // El dashboard enlaza a /agenda?nueva=1 para abrir el modal directamente.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('nueva') === '1') {
+      setModalAbierto(true)
+      window.history.replaceState(null, '', '/agenda')
+    }
+  }, [])
 
   const dias = useMemo(() => Array.from({ length: 7 }, (_, i) => sumarDias(lunes, i)), [lunes])
   const horas = useMemo(
@@ -75,10 +94,10 @@ export default function AgendaPage() {
     setLoading(true)
     setError('')
 
-    const desde = new Date(lunes)
-    const hasta = sumarDias(lunes, 7)
+    // Rango cerrado: lunes 00:00 hasta el último milisegundo del domingo.
+    const hasta = new Date(sumarDias(lunes, 7).getTime() - 1)
     const params = new URLSearchParams({
-      desde: desde.toISOString(),
+      desde: lunes.toISOString(),
       hasta: hasta.toISOString(),
     })
 
@@ -97,7 +116,7 @@ export default function AgendaPage() {
       .finally(() => setLoading(false))
 
     return () => controller.abort()
-  }, [lunes])
+  }, [lunes, recarga])
 
   // Leyenda de peluqueros construida desde los datos, no escrita a mano
   const peluqueros = useMemo(() => {
@@ -128,6 +147,10 @@ export default function AgendaPage() {
 
   const hoy = new Date()
   const altoGrilla = (HORA_FIN - HORA_INICIO) * PX_POR_HORA
+
+  // Si la semana visible es la actual el modal parte en hoy; si no, en su lunes.
+  const dentroDeLaSemana = hoy >= lunes && hoy < sumarDias(lunes, 7)
+  const fechaParaModal = comoFechaInput(dentroDeLaSemana ? hoy : lunes)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -160,7 +183,10 @@ export default function AgendaPage() {
             >
               Siguiente →
             </button>
-            <button className="px-4 py-2 text-sm bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium">
+            <button
+              onClick={() => setModalAbierto(true)}
+              className="px-4 py-2 text-sm bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium"
+            >
               + Nueva cita
             </button>
           </div>
@@ -246,6 +272,7 @@ export default function AgendaPage() {
                     return (
                       <div
                         key={cita.id}
+                        onClick={() => setCitaSeleccionada(cita)}
                         title={`${hhmm(inicio)} · ${cita.cliente?.nombre ?? 'Sin cliente'} · ${servicios || 'Sin servicio'} (${duracionMin} min)`}
                         className={`absolute left-1 right-1 rounded-lg border p-1.5 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity ${
                           cita.estado === 'cancelada' || cita.estado === 'no_show' ? 'opacity-50 line-through' : ''
@@ -276,6 +303,19 @@ export default function AgendaPage() {
           <p className="text-sm text-gray-400 text-center mt-4">No hay citas en esta semana</p>
         )}
       </div>
+
+      <ModalNuevaCita
+        abierto={modalAbierto}
+        onCerrar={() => setModalAbierto(false)}
+        onCreada={() => setRecarga((n) => n + 1)}
+        fechaInicial={fechaParaModal}
+      />
+
+      <ModalDetalleCita
+        cita={citaSeleccionada}
+        onCerrar={() => setCitaSeleccionada(null)}
+        onActualizada={() => setRecarga((n) => n + 1)}
+      />
     </div>
   )
 }

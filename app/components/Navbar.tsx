@@ -9,6 +9,9 @@ const enlaces = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/agenda', label: 'Agenda' },
   { href: '/clientes', label: 'Clientes' },
+  { href: '/servicios', label: 'Servicios' },
+  { href: '/peluqueros', label: 'Peluqueros' },
+  { href: '/reportes', label: 'Reportes' },
 ]
 
 export default function Navbar({ peluqueria }: { peluqueria?: string }) {
@@ -47,7 +50,7 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
   return (
     <nav className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
       <div className="flex items-center gap-3 sm:gap-6 min-w-0">
-        <Link href="/dashboard" className="flex items-center gap-3">
+        <Link href="/dashboard" className="flex items-center gap-3 shrink-0">
           <Image
             src="/logo_agenda_peluqueria.png"
             alt="Agenda Peluquerías"
@@ -55,10 +58,11 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
             height={32}
             className="w-8 h-8 object-contain"
           />
-          <span className="font-semibold text-gray-800 hidden sm:inline">Agenda Peluquerías</span>
+          <span className="font-semibold text-gray-800 hidden lg:inline">Agenda Peluquerías</span>
         </Link>
 
-        <div className="flex items-center gap-1">
+        {/* Con seis enlaces la fila no cabe en pantallas angostas: se desplaza en horizontal. */}
+        <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {enlaces.map((enlace) => {
             const activo = pathname === enlace.href || pathname.startsWith(`${enlace.href}/`)
             return (
@@ -66,7 +70,7 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
                 key={enlace.href}
                 href={enlace.href}
                 aria-current={activo ? 'page' : undefined}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   activo
                     ? 'bg-slate-900 text-white'
                     : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
@@ -79,12 +83,12 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        {nombre && <span className="text-sm text-gray-500 hidden sm:inline">{nombre}</span>}
+      <div className="flex shrink-0 items-center gap-4">
+        {nombre && <span className="hidden text-sm text-gray-500 xl:inline">{nombre}</span>}
         <button
           onClick={handleLogout}
           disabled={saliendo}
-          className="text-sm text-red-500 hover:text-red-700 font-medium transition-colors disabled:opacity-50"
+          className="whitespace-nowrap text-sm font-medium text-red-500 transition-colors hover:text-red-700 disabled:opacity-50"
         >
           {saliendo ? 'Saliendo...' : 'Cerrar sesión'}
         </button>

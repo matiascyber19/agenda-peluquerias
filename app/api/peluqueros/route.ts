@@ -1,8 +1,6 @@
 //hrm me tomé esta libertad pq crei necesario poder agregar o leiminar peluqueros en las peluquerias, y que el dueño del local pueda hacerlo, no??? en vez de hacerlo nosotros
 //hay que agregar el boton de Peluqueros en el dashboard jejejeje
 import { createClient } from "@/app/lib/supabase/server";
-import { create } from "domain";
-import { nextTest } from "next/dist/cli/next-test";
 import { NextResponse } from "next/server";
 
 //obtener peluqueros

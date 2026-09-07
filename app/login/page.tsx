@@ -21,8 +21,6 @@ export default function LoginPage() {
       body: JSON.stringify({ email, password }),
     })
 
-    const data = await res.json()
-
     if (!res.ok) {
       setError('Correo o contraseña incorrectos')
       setLoading(false)
@@ -43,10 +41,18 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           <h2 className="text-xl font-semibold text-gray-800 mb-6">Inicia sesión</h2>
 
-          <div className="space-y-5">
+          <form
+            className="space-y-5"
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleLogin()
+            }}
+          >
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Correo electrónico</label>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">Correo electrónico</label>
               <input
+                id="email"
+                autoComplete="email"
                 type="email"
                 placeholder="tu@correo.cl"
                 value={email}
@@ -56,8 +62,10 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Contraseña</label>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">Contraseña</label>
               <input
+                id="password"
+                autoComplete="current-password"
                 type="password"
                 placeholder="••••••••"
                 value={password}
@@ -69,13 +77,13 @@ export default function LoginPage() {
             {error && <p className="text-red-500 text-sm">{error}</p>}
 
             <button
-              onClick={handleLogin}
+              type="submit"
               disabled={loading}
               className="w-full bg-slate-900 text-white rounded-xl py-3 text-sm font-semibold hover:bg-slate-700 active:scale-95 transition-all mt-2 disabled:opacity-50"
             >
               {loading ? 'Ingresando...' : 'Ingresar →'}
             </button>
-          </div>
+          </form>
 
           <div className="flex items-center gap-3 my-6">
             <div className="flex-1 h-px bg-gray-100"></div>

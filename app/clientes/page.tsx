@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '../components/Navbar'
+import ModalCliente from '../components/ModalCliente'
 
 interface Cliente {
   id: string
@@ -60,6 +61,16 @@ export default function ClientesPage() {
   const [filtro, setFiltro] = useState('todos')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [modalAbierto, setModalAbierto] = useState(false)
+  const [recarga, setRecarga] = useState(0)
+
+  // El dashboard enlaza a /clientes?nuevo=1 para abrir el modal directamente.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('nuevo') === '1') {
+      setModalAbierto(true)
+      window.history.replaceState(null, '', '/clientes')
+    }
+  }, [])
 
   // debounce de la búsqueda: no dispara un fetch por cada tecla
   const [busquedaAplicada, setBusquedaAplicada] = useState('')
@@ -110,7 +121,7 @@ export default function ClientesPage() {
       .finally(() => setLoading(false))
 
     return () => controller.abort()
-  }, [busquedaAplicada, filtro])
+  }, [busquedaAplicada, filtro, recarga])
 
   // "Sin visitar 60+ días" no existe como filtro en la API: se resuelve en cliente.
   const clientesFiltrados = useMemo(() => {
@@ -143,7 +154,10 @@ export default function ClientesPage() {
                 : `${clientesFiltrados.length} ${clientesFiltrados.length === 1 ? 'cliente' : 'clientes'}`}
             </p>
           </div>
-          <button className="px-4 py-2 text-sm bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium">
+          <button
+            onClick={() => setModalAbierto(true)}
+            className="px-4 py-2 text-sm bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium"
+          >
             + Nuevo cliente
           </button>
         </div>
@@ -223,7 +237,6 @@ export default function ClientesPage() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        {/* TODO: app/clientes/[id]/page.tsx todavía no existe (la API sí). Diego debe subirla. */}
                         <button
                           onClick={() => router.push(`/clientes/${cliente.id}`)}
                           className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors"
@@ -240,6 +253,12 @@ export default function ClientesPage() {
         </div>
 
       </div>
+
+      <ModalCliente
+        abierto={modalAbierto}
+        onCerrar={() => setModalAbierto(false)}
+        onGuardado={() => setRecarga((n) => n + 1)}
+      />
     </div>
   )
 }

@@ -24,9 +24,9 @@ export async function POST(request: Request){
             )
         }
         //4.Validar contraseña por longitud
-        if(password.length < 6){
+        if(password.length < 8){
             return NextResponse.json(
-                {error:'La constraseña debe tener a lo menos 6 caracteres'},
+                {error:'La contraseña debe tener al menos 8 caracteres'},
                 {status:400}
             )
         }
@@ -50,6 +50,21 @@ export async function POST(request: Request){
                 {error:'Error al crear usuario'},
                 {status:500}
             )
+        }
+
+        //5b.El RPC de abajo corre bajo RLS y necesita sesión activa.
+        //signUp solo la devuelve si la confirmación de email está desactivada.
+        if(!authData.session){
+            const {error:signInError} = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            })
+            if(signInError){
+                return NextResponse.json(
+                    {error:'Tu cuenta fue creada. Confirma tu correo e inicia sesión para terminar de configurar la peluquería.'},
+                    {status:409}
+                )
+            }
         }
 
         //6.LLamar a funcion registrar_peluqueria() de la base de datos

@@ -1,6 +1,15 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const RUTAS_PROTEGIDAS = [
+  '/dashboard',
+  '/agenda',
+  '/clientes',
+  '/servicios',
+  '/peluqueros',
+  '/reportes',
+]
+
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next()
 
@@ -23,11 +32,16 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (request.nextUrl.pathname.startsWith('/dashboard') && !user) {
+  const { pathname } = request.nextUrl
+  const esProtegida = RUTAS_PROTEGIDAS.some(
+    (ruta) => pathname === ruta || pathname.startsWith(`${ruta}/`)
+  )
+
+  if (esProtegida && !user) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  if (request.nextUrl.pathname === '/login' && user) {
+  if (pathname === '/login' && user) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
@@ -35,5 +49,13 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/panel/:path*', '/login'],
+  matcher: [
+    '/dashboard/:path*',
+    '/agenda/:path*',
+    '/clientes/:path*',
+    '/servicios/:path*',
+    '/peluqueros/:path*',
+    '/reportes/:path*',
+    '/login',
+  ],
 }

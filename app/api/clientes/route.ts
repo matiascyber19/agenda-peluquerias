@@ -14,7 +14,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const buscar = searchParams.get('buscar')
   const bloqueado = searchParams.get('bloqueado')
-  const limit = parseInt(searchParams.get('limit') || '100')
+  // Un ?limit inválido o desmedido no debe llegar a la consulta.
+  const limitPedido = Number(searchParams.get('limit'))
+  const limit =
+    Number.isInteger(limitPedido) && limitPedido > 0 ? Math.min(limitPedido, 500) : 100
 
   // 3. Consulta base
   let query = supabase
@@ -42,8 +45,13 @@ export async function GET(request: Request) {
     .limit(limit)
 
   // 4. Filtro de búsqueda (nombre o teléfono)
+  // PostgREST lee , ( ) . como sintaxis dentro de .or(): si llegan en el valor
+  // el usuario puede inyectar condiciones extra, así que se descartan.
   if (buscar) {
-    query = query.or(`nombre.ilike.%${buscar}%,telefono.ilike.%${buscar}%`)
+    const termino = buscar.replace(/[,()."\\]/g, '').trim()
+    if (termino) {
+      query = query.or(`nombre.ilike.%${termino}%,telefono.ilike.%${termino}%`)
+    }
   }
 
   // 5. Filtro por bloqueado

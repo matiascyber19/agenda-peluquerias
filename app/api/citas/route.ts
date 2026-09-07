@@ -1,13 +1,39 @@
 import { createClient } from '@/app/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+type Embebido<T> = T | T[] | null
+
+// Supabase devuelve una relación embebida como objeto o como arreglo de un
+// elemento según cómo infiera la cardinalidad: la dejamos siempre en un registro.
+function uno<T>(relacion: Embebido<T>): T | null {
+  return Array.isArray(relacion) ? relacion[0] ?? null : relacion ?? null
+}
+
+interface CitaRow {
+  id: string
+  inicio: string
+  fin: string | null
+  estado: string
+  notas: string | null
+  clientes: Embebido<{ nombre: string; telefono: string | null }>
+  peluqueros: Embebido<{ id: string; nombre: string; color_agenda: string | null }>
+  cita_servicios:
+    | {
+        precio_congelado_clp: number
+        duracion_congelada_min: number
+        servicios: Embebido<{ nombre: string }>
+      }[]
+    | null
+}
+
 // ============================================
 // GET /api/citas
 // Lista citas con filtros opcionales:
 //   ?fecha=2026-06-08        (día completo)
 //   ?peluquero_id=uuid       (filtrar por peluquero)
 //   ?estado=pendiente        (filtrar por estado)
-//   ?desde=2026-06-01&hasta=2026-06-30  (rango de fechas)
+//   ?desde=2026-06-01&hasta=2026-06-30  (rango; acepta ISO completo)
+// Devuelve { citas: [{ id, inicio, fin, estado, notas, cliente, peluquero, servicios }] }
 // ============================================
 export async function GET(request: Request) {
   const supabase = await createClient()
@@ -52,12 +78,13 @@ export async function GET(request: Request) {
       .lte('inicio', `${fecha}T23:59:59`)
   }
 
+  // Aceptan tanto YYYY-MM-DD como un instante ISO completo (2026-06-08T12:00:00.000Z)
   if (desde) {
-    query = query.gte('inicio', `${desde}T00:00:00`)
+    query = query.gte('inicio', desde.includes('T') ? desde : `${desde}T00:00:00`)
   }
 
   if (hasta) {
-    query = query.lte('inicio', `${hasta}T23:59:59`)
+    query = query.lte('inicio', hasta.includes('T') ? hasta : `${hasta}T23:59:59`)
   }
 
   if (peluquero_id) {
@@ -74,7 +101,35 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ citas: data })
+  const citas = ((data ?? []) as unknown as CitaRow[]).map((cita) => {
+    const cliente = uno(cita.clientes)
+    const peluquero = uno(cita.peluqueros)
+
+    return {
+      id: cita.id,
+      inicio: cita.inicio,
+      fin: cita.fin,
+      estado: cita.estado,
+      notas: cita.notas,
+      cliente: cliente
+        ? { nombre: cliente.nombre, telefono: cliente.telefono }
+        : null,
+      peluquero: peluquero
+        ? {
+            id: peluquero.id,
+            nombre: peluquero.nombre,
+            color_agenda: peluquero.color_agenda,
+          }
+        : null,
+      servicios: (cita.cita_servicios ?? []).map((cs) => ({
+        nombre: uno(cs.servicios)?.nombre ?? 'Servicio',
+        duracion_minutos: cs.duracion_congelada_min,
+        precio_clp: cs.precio_congelado_clp,
+      })),
+    }
+  })
+
+  return NextResponse.json({ citas })
 }
 
 // ============================================

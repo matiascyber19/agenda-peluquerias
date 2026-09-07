@@ -1,36 +1,61 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Navbar from '../components/Navbar'
 
 interface Cliente {
   id: string
   nombre: string
-  telefono: string | null
-  ultimaVisita: string | null
-  totalServicios: number
-  totalGastadoClp: number
+  telefono: string
+  email: string | null
+  cumpleanos: string | null
+  como_llego: string | null
+  notas: string | null
   bloqueado: boolean
+  ultimaVisita: string | null
+  servicios: number
+  gasto: number
+}
+
+interface DatosDashboard {
+  usuario: {
+    nombre: string
+    rol: string
+    peluqueria: string
+  }
 }
 
 const FILTROS = [
   { valor: 'todos', label: 'Todos' },
   { valor: 'activos', label: 'Activos' },
-  { valor: 'inactivos60', label: 'Sin visitar 60+ días' },
+  { valor: 'sin-visitar', label: 'Sin visitar 60+ días' },
   { valor: 'bloqueados', label: 'Bloqueados' },
 ]
 
 function formatearCLP(monto: number) {
-  return monto.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })
+  return monto.toLocaleString('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    maximumFractionDigits: 0,
+  })
 }
 
 function formatearFecha(iso: string | null) {
-  if (!iso) return 'Nunca'
-  return new Date(iso).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  if (!iso) return 'Sin visitas'
+  return new Date(iso).toLocaleDateString('es-CL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'America/Santiago',
+  })
 }
 
 export default function ClientesPage() {
+  const router = useRouter()
+
   const [clientes, setClientes] = useState<Cliente[]>([])
+  const [peluqueria, setPeluqueria] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [filtro, setFiltro] = useState('todos')
   const [loading, setLoading] = useState(true)
@@ -43,14 +68,32 @@ export default function ClientesPage() {
     return () => clearTimeout(t)
   }, [busqueda])
 
+  // Carga inicial: nombre de la peluquería para el Navbar.
+  useEffect(() => {
+    let cancelado = false
+    fetch('/api/dashboard')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json: DatosDashboard | null) => {
+        if (!cancelado && json?.usuario?.peluqueria) {
+          setPeluqueria(json.usuario.peluqueria)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelado = true
+    }
+  }, [])
+
+  // Búsqueda en servidor: la API soporta ?buscar= y ?bloqueado=.
   useEffect(() => {
     const controller = new AbortController()
     setLoading(true)
     setError('')
 
     const params = new URLSearchParams()
-    if (busquedaAplicada) params.set('q', busquedaAplicada)
-    if (filtro !== 'todos') params.set('filtro', filtro)
+    if (busquedaAplicada) params.set('buscar', busquedaAplicada)
+    if (filtro === 'bloqueados') params.set('bloqueado', 'true')
+    if (filtro === 'activos') params.set('bloqueado', 'false')
 
     fetch(`/api/clientes?${params.toString()}`, { signal: controller.signal })
       .then(async (res) => {
@@ -69,9 +112,22 @@ export default function ClientesPage() {
     return () => controller.abort()
   }, [busquedaAplicada, filtro])
 
+  // "Sin visitar 60+ días" no existe como filtro en la API: se resuelve en cliente.
+  const clientesFiltrados = useMemo(() => {
+    if (filtro !== 'sin-visitar') return clientes
+
+    const haceSesentaDias = new Date()
+    haceSesentaDias.setDate(haceSesentaDias.getDate() - 60)
+
+    return clientes.filter((cliente) => {
+      if (!cliente.ultimaVisita) return true
+      return new Date(cliente.ultimaVisita) < haceSesentaDias
+    })
+  }, [clientes, filtro])
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
+      <Navbar peluqueria={peluqueria} />
 
       <div className="max-w-6xl mx-auto px-6 py-8">
 
@@ -80,7 +136,11 @@ export default function ClientesPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
             <p className="text-gray-500 text-sm mt-1">
-              {loading ? 'Cargando...' : error ? '—' : `${clientes.length} ${clientes.length === 1 ? 'cliente' : 'clientes'}`}
+              {loading
+                ? 'Cargando...'
+                : error
+                ? '—'
+                : `${clientesFiltrados.length} ${clientesFiltrados.length === 1 ? 'cliente' : 'clientes'}`}
             </p>
           </div>
           <button className="px-4 py-2 text-sm bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium">
@@ -117,7 +177,7 @@ export default function ClientesPage() {
             <p className="text-sm text-red-500 py-12 text-center">{error}</p>
           ) : loading ? (
             <p className="text-sm text-gray-400 py-12 text-center">Cargando clientes...</p>
-          ) : clientes.length === 0 ? (
+          ) : clientesFiltrados.length === 0 ? (
             <p className="text-sm text-gray-400 py-12 text-center">
               {busquedaAplicada || filtro !== 'todos'
                 ? 'Ningún cliente coincide con la búsqueda'
@@ -138,10 +198,10 @@ export default function ClientesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {clientes.map((cliente, i) => (
+                  {clientesFiltrados.map((cliente, i) => (
                     <tr
                       key={cliente.id}
-                      className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${i === clientes.length - 1 ? 'border-0' : ''}`}
+                      className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${i === clientesFiltrados.length - 1 ? 'border-0' : ''}`}
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -153,8 +213,8 @@ export default function ClientesPage() {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">{cliente.telefono ?? '—'}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{formatearFecha(cliente.ultimaVisita)}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{cliente.totalServicios}</td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-800">{formatearCLP(cliente.totalGastadoClp)}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{cliente.servicios}</td>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-800">{formatearCLP(cliente.gasto)}</td>
                       <td className="px-6 py-4">
                         {cliente.bloqueado ? (
                           <span className="text-xs px-2.5 py-1 rounded-full bg-red-100 text-red-700 font-medium">Bloqueado</span>
@@ -163,7 +223,11 @@ export default function ClientesPage() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <button className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors">
+                        {/* TODO: app/clientes/[id]/page.tsx todavía no existe (la API sí). Diego debe subirla. */}
+                        <button
+                          onClick={() => router.push(`/clientes/${cliente.id}`)}
+                          className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors"
+                        >
                           Ver ficha →
                         </button>
                       </td>

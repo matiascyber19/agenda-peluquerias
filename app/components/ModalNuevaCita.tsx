@@ -49,7 +49,14 @@ function formatearCLP(monto: number) {
   })
 }
 
-export default function ModalNuevaCita({ abierto, onCerrar, onCreada, fechaInicial }: Props) {
+// El formulario se monta cada vez que el modal se abre, así parte limpio sin
+// tener que resetearlo en un efecto.
+export default function ModalNuevaCita({ abierto, ...props }: Props) {
+  if (!abierto) return null
+  return <FormularioNuevaCita {...props} />
+}
+
+function FormularioNuevaCita({ onCerrar, onCreada, fechaInicial }: Omit<Props, 'abierto'>) {
   const [clientes, setClientes] = useState<ClienteOpcion[]>([])
   const [peluqueros, setPeluqueros] = useState<PeluqueroOpcion[]>([])
   const [servicios, setServicios] = useState<ServicioOpcion[]>([])
@@ -57,7 +64,7 @@ export default function ModalNuevaCita({ abierto, onCerrar, onCreada, fechaInici
 
   const [clienteId, setClienteId] = useState('')
   const [peluqueroId, setPeluqueroId] = useState('')
-  const [fecha, setFecha] = useState(fechaInicial ?? hoyLocal())
+  const [fecha, setFecha] = useState(() => fechaInicial ?? hoyLocal())
   const [hora, setHora] = useState('10:00')
   const [serviciosElegidos, setServiciosElegidos] = useState<string[]>([])
   const [notas, setNotas] = useState('')
@@ -65,19 +72,8 @@ export default function ModalNuevaCita({ abierto, onCerrar, onCreada, fechaInici
   const [error, setError] = useState('')
   const [guardando, setGuardando] = useState(false)
 
-  // Al abrir: limpia el formulario y trae las tres listas que necesita el selector.
+  // Al montarse trae las tres listas que necesita el selector.
   useEffect(() => {
-    if (!abierto) return
-
-    setClienteId('')
-    setPeluqueroId('')
-    setFecha(fechaInicial ?? hoyLocal())
-    setHora('10:00')
-    setServiciosElegidos([])
-    setNotas('')
-    setError('')
-    setCargandoDatos(true)
-
     const controller = new AbortController()
 
     Promise.all([
@@ -89,15 +85,18 @@ export default function ModalNuevaCita({ abierto, onCerrar, onCreada, fechaInici
         setClientes((resClientes.clientes ?? []).filter((c: ClienteOpcion) => !c.bloqueado))
         setPeluqueros((resPeluqueros.peluqueros ?? []).filter((p: PeluqueroOpcion) => p.activo))
         setServicios((resServicios.servicios ?? []).filter((s: ServicioOpcion) => s.activo))
+        setCargandoDatos(false)
       })
       .catch((err) => {
+        // Un pedido abortado no termina la carga: si no, el modal mostraría
+        // "faltan datos" mientras el pedido vigente sigue en curso.
         if (err.name === 'AbortError') return
         setError('No pudimos cargar clientes, peluqueros o servicios.')
+        setCargandoDatos(false)
       })
-      .finally(() => setCargandoDatos(false))
 
     return () => controller.abort()
-  }, [abierto, fechaInicial])
+  }, [])
 
   const seleccionados = useMemo(
     () => servicios.filter((s) => serviciosElegidos.includes(s.id)),
@@ -141,11 +140,8 @@ export default function ModalNuevaCita({ abierto, onCerrar, onCreada, fechaInici
           cliente_id: clienteId,
           peluquero_id: peluqueroId,
           inicio: inicio.toISOString(),
-          servicios: seleccionados.map((s) => ({
-            servicio_id: s.id,
-            precio: s.precio_clp,
-            duracion: s.duracion_minutos,
-          })),
+          // Precio y duración los toma la API de la tabla servicios.
+          servicios: seleccionados.map((s) => ({ servicio_id: s.id })),
           notas: notas.trim() || null,
         }),
       })
@@ -173,7 +169,7 @@ export default function ModalNuevaCita({ abierto, onCerrar, onCreada, fechaInici
     <Modal
       titulo="Nueva cita"
       descripcion="Agenda una hora para un cliente"
-      abierto={abierto}
+      abierto
       onCerrar={onCerrar}
       ancho="xl"
     >
@@ -181,6 +177,8 @@ export default function ModalNuevaCita({ abierto, onCerrar, onCreada, fechaInici
         <p className="py-8 text-center text-sm text-gray-400">Cargando datos...</p>
       ) : faltanDatos ? (
         <div className="py-4">
+          {/* Si la carga falló, las listas vienen vacías por eso y no porque falten datos. */}
+          {error && <p className="mb-3 text-sm text-red-500">{error}</p>}
           <p className="text-sm text-gray-600">Antes de agendar necesitas tener cargado:</p>
           <ul className="mt-3 space-y-2 text-sm">
             {clientes.length === 0 && (

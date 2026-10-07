@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Modal from './Modal'
 import { LABEL, BOTON_PRIMARIO, BOTON_SECUNDARIO } from './estilos'
 
@@ -46,21 +46,20 @@ function formatearFechaHora(iso: string) {
   })
 }
 
-export default function ModalDetalleCita({ cita, onCerrar, onActualizada }: Props) {
-  const [estado, setEstado] = useState('pendiente')
+// El detalle se monta por cada cita que se abre, así el selector parte con su
+// estado sin tener que resetearlo en un efecto.
+export default function ModalDetalleCita({ cita, ...props }: Props) {
+  if (!cita) return null
+  return <DetalleCita key={cita.id} cita={cita} {...props} />
+}
+
+function DetalleCita({ cita, onCerrar, onActualizada }: Props & { cita: CitaDetalle }) {
+  // 'cancelada' no está entre las opciones: una cita cancelada se reactiva
+  // eligiendo otro estado, así que el selector parte en pendiente.
+  const [estado, setEstado] = useState(cita.estado === 'cancelada' ? 'pendiente' : cita.estado)
   const [error, setError] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [cancelando, setCancelando] = useState(false)
-
-  useEffect(() => {
-    if (!cita) return
-    // 'cancelada' no está entre las opciones: una cita cancelada se reactiva
-    // eligiendo otro estado, así que el selector parte en pendiente.
-    setEstado(cita.estado === 'cancelada' ? 'pendiente' : cita.estado)
-    setError('')
-  }, [cita])
-
-  if (!cita) return null
 
   const precioTotal = cita.servicios.reduce((t, s) => t + s.precio_clp, 0)
   const duracionTotal = cita.servicios.reduce((t, s) => t + s.duracion_minutos, 0)
@@ -69,7 +68,7 @@ export default function ModalDetalleCita({ cita, onCerrar, onActualizada }: Prop
     setGuardando(true)
     setError('')
     try {
-      const res = await fetch(`/api/citas/${cita!.id}`, {
+      const res = await fetch(`/api/citas/${cita.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estado }),
@@ -92,7 +91,7 @@ export default function ModalDetalleCita({ cita, onCerrar, onActualizada }: Prop
     setCancelando(true)
     setError('')
     try {
-      const res = await fetch(`/api/citas/${cita!.id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/citas/${cita.id}`, { method: 'DELETE' })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
         setError(json.error ?? 'No pudimos cancelar la cita')

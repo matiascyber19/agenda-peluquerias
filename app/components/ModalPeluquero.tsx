@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Modal from './Modal'
 import { INPUT, LABEL, BOTON_CREAR, BOTON_SECUNDARIO } from './estilos'
 
@@ -30,27 +30,24 @@ const CONTRATOS = [
 // Paleta sugerida para distinguir peluqueros en la grilla de la agenda.
 const COLORES = ['#3b82f6', '#ef4444', '#22c55e', '#a855f7', '#f97316', '#14b8a6']
 
-export default function ModalPeluquero({ abierto, onCerrar, onGuardado, peluquero }: Props) {
+// El formulario se monta cada vez que el modal se abre, así parte con los datos
+// del peluquero sin tener que resetearlo en un efecto.
+export default function ModalPeluquero({ abierto, ...props }: Props) {
+  if (!abierto) return null
+  return <FormularioPeluquero key={props.peluquero?.id ?? 'nuevo'} {...props} />
+}
+
+function FormularioPeluquero({ onCerrar, onGuardado, peluquero }: Omit<Props, 'abierto'>) {
   const editando = Boolean(peluquero)
 
-  const [nombre, setNombre] = useState('')
-  const [telefono, setTelefono] = useState('')
-  const [contrato, setContrato] = useState('fijo')
-  const [comision, setComision] = useState('0')
-  const [color, setColor] = useState(COLORES[0])
+  const [nombre, setNombre] = useState(peluquero?.nombre ?? '')
+  const [telefono, setTelefono] = useState(peluquero?.telefono ?? '')
+  const [contrato, setContrato] = useState(peluquero?.tipo_contrato ?? 'fijo')
+  const [comision, setComision] = useState(String(peluquero?.porcentaje_comision ?? 0))
+  const [color, setColor] = useState(peluquero?.color_agenda ?? COLORES[0])
 
   const [error, setError] = useState('')
   const [guardando, setGuardando] = useState(false)
-
-  useEffect(() => {
-    if (!abierto) return
-    setNombre(peluquero?.nombre ?? '')
-    setTelefono(peluquero?.telefono ?? '')
-    setContrato(peluquero?.tipo_contrato ?? 'fijo')
-    setComision(String(peluquero?.porcentaje_comision ?? 0))
-    setColor(peluquero?.color_agenda ?? COLORES[0])
-    setError('')
-  }, [abierto, peluquero])
 
   async function guardar() {
     if (!nombre.trim()) return setError('Escribe el nombre del peluquero')
@@ -107,7 +104,7 @@ export default function ModalPeluquero({ abierto, onCerrar, onGuardado, peluquer
     <Modal
       titulo={editando ? 'Editar peluquero' : 'Nuevo peluquero'}
       descripcion={editando ? undefined : 'Agrega a alguien del equipo'}
-      abierto={abierto}
+      abierto
       onCerrar={onCerrar}
     >
       <form

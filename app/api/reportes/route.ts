@@ -1,4 +1,5 @@
 import { createClient } from "@/app/lib/supabase/server";
+import { uno } from "@/app/lib/supabase/embebido";
 import { NextResponse } from "next/server";
 
 //obtener datos para los reportes
@@ -163,16 +164,14 @@ export async function GET(request: Request){
             cantidad: number
         }> = {}
 
-        //contar servicios asociados a las citas encontradas
+        //contar servicios de las citas completadas: las pendientes, canceladas
+        //o no-show todavía no son servicios "realizados"
         for(const cita of citas || []){
+            if(cita.estado !== 'completada'){
+                continue
+            }
             for(const detalle of cita.cita_servicios || []){
-                const servicioRelacionado = detalle.servicios as any
-                if(!servicioRelacionado){
-                    continue
-                }
-                const servicio = Array.isArray(servicioRelacionado)
-                ? servicioRelacionado[0]
-                : servicioRelacionado
+                const servicio = uno(detalle.servicios)
                 if(!servicio?.id){
                     continue
                 }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
+import { uno } from '@/app/lib/supabase/embebido'
 
 const ZONA = 'America/Santiago'
 
@@ -127,7 +128,7 @@ export async function GET() {
     usuario: {
       nombre: usuario.nombre,
       rol: usuario.rol,
-      peluqueria: (usuario as any).peluquerias?.nombre
+      peluqueria: uno(usuario.peluquerias)?.nombre
     },
     resumen: {
       totalCitas,
@@ -140,21 +141,21 @@ export async function GET() {
     citas: citas.map(c => ({
       id: c.id,
       hora: new Date(c.inicio).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
-      cliente: (c as any).clientes?.nombre || 'Sin cliente',
-      peluquero: (c as any).peluqueros?.nombre || 'Sin asignar',
-      colorPeluquero: (c as any).peluqueros?.color_agenda,
-      servicios: ((c as any).cita_servicios || [])
-        .map((cs: any) => cs.servicios?.nombre)
+      cliente: uno(c.clientes)?.nombre || 'Sin cliente',
+      peluquero: uno(c.peluqueros)?.nombre || 'Sin asignar',
+      colorPeluquero: uno(c.peluqueros)?.color_agenda,
+      servicios: (c.cita_servicios || [])
+        .map((cs) => uno(cs.servicios)?.nombre)
         .filter(Boolean)
         .join(' + '),
       estado: c.estado
     })),
     proximaCita: proximaCita ? {
       hora: new Date(proximaCita.inicio).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
-      cliente: (proximaCita as any).clientes?.nombre,
-      peluquero: (proximaCita as any).peluqueros?.nombre,
-      servicio: ((proximaCita as any).cita_servicios || [])
-        .map((cs: any) => cs.servicios?.nombre)
+      cliente: uno(proximaCita.clientes)?.nombre,
+      peluquero: uno(proximaCita.peluqueros)?.nombre,
+      servicio: (proximaCita.cita_servicios || [])
+        .map((cs) => uno(cs.servicios)?.nombre)
         .filter(Boolean)
         .join(' + '),
       inicio: proximaCita.inicio

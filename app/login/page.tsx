@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -34,7 +35,14 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
-          <img src="/logo_agenda_peluqueria.png" alt="Agenda Peluquerías" className="w-36 h-36 object-contain mx-auto filter invert" />
+          <Image
+            src="/logo_agenda_peluqueria.png"
+            alt="Agenda Peluquerías"
+            width={144}
+            height={144}
+            loading="eager"
+            className="w-36 h-36 object-contain mx-auto filter invert"
+          />
           <p className="text-slate-400 text-sm mt-1">Panel de gestión para tu negocio</p>
         </div>
 

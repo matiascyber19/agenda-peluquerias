@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { use, useEffect, useMemo, useState } from 'react'
 import Navbar from '../components/Navbar'
 import ModalNuevaCita from '../components/ModalNuevaCita'
 import ModalDetalleCita from '../components/ModalDetalleCita'
@@ -16,10 +16,17 @@ interface Cita {
 }
 
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
-const HORA_INICIO = 9   // primera hora visible
-const HORA_FIN = 20     // última hora visible (exclusiva)
+const HORA_INICIO = 9   // primera hora visible si ninguna cita parte antes
+const HORA_FIN = 20     // última hora visible (exclusiva) si ninguna cita termina después
 const PX_POR_HORA = 64
 const COLOR_POR_DEFECTO = '#64748b'
+
+/** Duración real de la cita en minutos; sin `fin`, la suma de sus servicios */
+function duracionMinutos(cita: Cita) {
+  return cita.fin
+    ? (new Date(cita.fin).getTime() - new Date(cita.inicio).getTime()) / 60000
+    : cita.servicios.reduce((s, srv) => s + (srv.duracion_minutos || 0), 0) || 30
+}
 
 /** Lunes de la semana a la que pertenece `fecha`, a las 00:00 */
 function lunesDe(fecha: Date) {
@@ -66,33 +73,59 @@ function comoFechaInput(fecha: Date) {
   return `${fecha.getFullYear()}-${mes}-${dia}`
 }
 
-export default function AgendaPage() {
+export default function AgendaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ nueva?: string | string[] }>
+}) {
+  // El dashboard enlaza a /agenda?nueva=1 para abrir el modal directamente.
+  const { nueva } = use(searchParams)
   const [lunes, setLunes] = useState(() => lunesDe(new Date()))
-  const [citas, setCitas] = useState<Cita[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [modalAbierto, setModalAbierto] = useState(false)
+  const [modalAbierto, setModalAbierto] = useState(nueva === '1')
   const [citaSeleccionada, setCitaSeleccionada] = useState<Cita | null>(null)
   const [recarga, setRecarga] = useState(0)
 
-  // El dashboard enlaza a /agenda?nueva=1 para abrir el modal directamente.
+  // Quita el parámetro para que recargar la página no vuelva a abrir el modal.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('nueva') === '1') {
-      setModalAbierto(true)
-      window.history.replaceState(null, '', '/agenda')
-    }
-  }, [])
+    if (nueva === '1') window.history.replaceState(null, '', '/agenda')
+  }, [nueva])
+
+  // La respuesta recuerda qué semana (y qué recarga) pidió: mientras no
+  // coincida con la actual, las citas están cargando. Así el efecto no
+  // necesita hacer setLoading(true) de forma síncrona.
+  const consulta = `${lunes.toISOString()}|${recarga}`
+  const [respuesta, setRespuesta] = useState<{
+    consulta: string
+    citas: Cita[]
+    error: string
+  }>({ consulta: '', citas: [], error: '' })
+  const loading = respuesta.consulta !== consulta
+  const error = loading ? '' : respuesta.error
+  const citas = respuesta.citas
 
   const dias = useMemo(() => Array.from({ length: 7 }, (_, i) => sumarDias(lunes, i)), [lunes])
+
+  // La grilla muestra de 9:00 a 20:00 y se amplía si alguna cita de la semana
+  // cae fuera de ese rango; antes esas citas simplemente no se dibujaban.
+  const [horaInicio, horaFin] = useMemo(() => {
+    let desde = HORA_INICIO
+    let hasta = HORA_FIN
+    for (const cita of citas) {
+      const inicio = new Date(cita.inicio)
+      const horaDecimal = inicio.getHours() + inicio.getMinutes() / 60
+      desde = Math.min(desde, Math.floor(horaDecimal))
+      hasta = Math.max(hasta, Math.min(24, Math.ceil(horaDecimal + duracionMinutos(cita) / 60)))
+    }
+    return [desde, hasta]
+  }, [citas])
+
   const horas = useMemo(
-    () => Array.from({ length: HORA_FIN - HORA_INICIO }, (_, i) => HORA_INICIO + i),
-    []
+    () => Array.from({ length: horaFin - horaInicio }, (_, i) => horaInicio + i),
+    [horaInicio, horaFin]
   )
 
   useEffect(() => {
     const controller = new AbortController()
-    setLoading(true)
-    setError('')
 
     // Rango cerrado: lunes 00:00 hasta el último milisegundo del domingo.
     const hasta = new Date(sumarDias(lunes, 7).getTime() - 1)
@@ -107,16 +140,14 @@ export default function AgendaPage() {
         if (!res.ok) throw new Error(json.error ?? 'No se pudieron cargar las citas')
         return json
       })
-      .then((json) => setCitas(json.citas ?? []))
+      .then((json) => setRespuesta({ consulta, citas: json.citas ?? [], error: '' }))
       .catch((err) => {
         if (err.name === 'AbortError') return
-        setError(err.message)
-        setCitas([])
+        setRespuesta({ consulta, citas: [], error: err.message })
       })
-      .finally(() => setLoading(false))
 
     return () => controller.abort()
-  }, [lunes, recarga])
+  }, [consulta, lunes])
 
   // Leyenda de peluqueros construida desde los datos, no escrita a mano
   const peluqueros = useMemo(() => {
@@ -135,18 +166,16 @@ export default function AgendaPage() {
   /** Posición vertical y alto de la cita, proporcionales a su duración real */
   function geometria(cita: Cita) {
     const inicio = new Date(cita.inicio)
-    const duracionMin = cita.fin
-      ? (new Date(cita.fin).getTime() - inicio.getTime()) / 60000
-      : cita.servicios.reduce((s, srv) => s + (srv.duracion_minutos || 0), 0) || 30
+    const duracionMin = duracionMinutos(cita)
 
-    const minutosDesdeTope = (inicio.getHours() - HORA_INICIO) * 60 + inicio.getMinutes()
+    const minutosDesdeTope = (inicio.getHours() - horaInicio) * 60 + inicio.getMinutes()
     const top = (minutosDesdeTope / 60) * PX_POR_HORA
     const alto = Math.max((duracionMin / 60) * PX_POR_HORA, 22)
     return { top, alto, inicio, duracionMin }
   }
 
   const hoy = new Date()
-  const altoGrilla = (HORA_FIN - HORA_INICIO) * PX_POR_HORA
+  const altoGrilla = (horaFin - horaInicio) * PX_POR_HORA
 
   // Si la semana visible es la actual el modal parte en hoy; si no, en su lunes.
   const dentroDeLaSemana = hoy >= lunes && hoy < sumarDias(lunes, 7)

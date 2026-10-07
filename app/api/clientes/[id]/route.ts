@@ -245,7 +245,7 @@ export async function PATCH(
     const { nombre, telefono, email, cumpleanos, como_llego, notas, bloqueado } = body
 
     // 3. Construir objeto solo con campos que llegaron
-    const updates: any = {}
+    const updates: Record<string, unknown> = {}
     if (nombre !== undefined) updates.nombre = nombre
     if (telefono !== undefined) updates.telefono = telefono
     if (email !== undefined) updates.email = email
@@ -262,8 +262,8 @@ export async function PATCH(
     }
 
     // 4. Validar teléfono si viene
-    if (updates.telefono) {
-      const telefonoLimpio = updates.telefono.replace(/\D/g, '')
+    if (telefono) {
+      const telefonoLimpio = String(telefono).replace(/\D/g, '')
       if (telefonoLimpio.length < 8) {
         return NextResponse.json(
           { error: 'El teléfono debe tener al menos 8 dígitos' },

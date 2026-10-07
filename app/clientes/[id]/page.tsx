@@ -97,10 +97,9 @@ export default function FichaClientePage({ params }: { params: Promise<{ id: str
   const [modalAbierto, setModalAbierto] = useState(false)
   const [bloqueando, setBloqueando] = useState(false)
 
-  const cargar = useCallback(() => {
-    setLoading(true)
-    setError('')
-
+  // Solo toca el estado cuando llega la respuesta, para poder llamarla desde el
+  // efecto de montaje sin provocar renders en cascada.
+  const pedirFicha = useCallback(() => {
     fetch(`/api/clientes/${id}`)
       .then(async (res) => {
         const json = await res.json().catch(() => ({}))
@@ -116,8 +115,14 @@ export default function FichaClientePage({ params }: { params: Promise<{ id: str
   }, [id])
 
   useEffect(() => {
-    cargar()
-  }, [cargar])
+    pedirFicha()
+  }, [pedirFicha])
+
+  function cargar() {
+    setLoading(true)
+    setError('')
+    pedirFicha()
+  }
 
   async function alternarBloqueo() {
     if (!ficha) return

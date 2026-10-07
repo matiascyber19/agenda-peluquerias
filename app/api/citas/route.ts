@@ -1,12 +1,14 @@
 import { createClient } from '@/app/lib/supabase/server'
+import { type Embebido, uno } from '@/app/lib/supabase/embebido'
+import { buscarCruce, describirCruce, validarParticipantes } from '@/app/lib/citas'
 import { NextResponse } from 'next/server'
 
-type Embebido<T> = T | T[] | null
-
-// Supabase devuelve una relación embebida como objeto o como arreglo de un
-// elemento según cómo infiera la cardinalidad: la dejamos siempre en un registro.
-function uno<T>(relacion: Embebido<T>): T | null {
-  return Array.isArray(relacion) ? relacion[0] ?? null : relacion ?? null
+interface ServicioCatalogo {
+  id: string
+  nombre: string
+  precio_clp: number
+  duracion_minutos: number
+  activo: boolean
 }
 
 interface CitaRow {
@@ -140,12 +142,11 @@ export async function GET(request: Request) {
 //   cliente_id: "uuid",
 //   peluquero_id: "uuid",
 //   inicio: "2026-06-08T15:00:00Z",
-//   servicios: [
-//     { servicio_id: "uuid", precio: 8000, duracion: 30 },
-//     { servicio_id: "uuid", precio: 5000, duracion: 20 }
-//   ],
+//   servicios: [{ servicio_id: "uuid" }, { servicio_id: "uuid" }],
 //   notas: "opcional"
 // }
+// Precio y duración se leen de la tabla servicios: si vienen en el body se
+// ignoran, para que nadie pueda agendar a $0 editando el pedido.
 // ============================================
 export async function POST(request: Request) {
   try {
@@ -190,21 +191,74 @@ export async function POST(request: Request) {
       )
     }
 
-    // 5. Calcular hora de fin sumando la duración total de servicios
-    const duracionTotal = servicios.reduce(
-      (total: number, s: any) => total + (s.duracion || 0),
-      0
-    )
-    const fin = new Date(new Date(inicio).getTime() + duracionTotal * 60000).toISOString()
+    const inicioFecha = new Date(inicio)
+    if (Number.isNaN(inicioFecha.getTime())) {
+      return NextResponse.json({ error: 'La fecha de inicio no es válida' }, { status: 400 })
+    }
 
-    // 6. Crear la cita
+    const errorParticipantes = await validarParticipantes(supabase, {
+      clienteId: cliente_id,
+      peluqueroId: peluquero_id,
+    })
+    if (errorParticipantes) {
+      return NextResponse.json({ error: errorParticipantes }, { status: 400 })
+    }
+
+    // 5. Precio y duración vigentes de cada servicio, leídos de la base.
+    // RLS solo devuelve servicios de esta peluquería.
+    const idsPedidos: unknown[] = servicios.map((s: { servicio_id?: unknown }) => s?.servicio_id)
+    if (idsPedidos.some((id) => typeof id !== 'string' || !id)) {
+      return NextResponse.json({ error: 'Cada servicio debe indicar su servicio_id' }, { status: 400 })
+    }
+    const ids = idsPedidos as string[]
+
+    const { data: catalogo, error: catalogoError } = await supabase
+      .from('servicios')
+      .select('id, nombre, precio_clp, duracion_minutos, activo')
+      .in('id', [...new Set(ids)])
+
+    if (catalogoError) {
+      return NextResponse.json({ error: catalogoError.message }, { status: 500 })
+    }
+
+    const porId = new Map(((catalogo ?? []) as ServicioCatalogo[]).map((s) => [s.id, s]))
+    const elegidos: ServicioCatalogo[] = []
+    for (const id of ids) {
+      const servicio = porId.get(id)
+      if (!servicio) {
+        return NextResponse.json({ error: 'Algún servicio no existe en tu peluquería' }, { status: 400 })
+      }
+      if (!servicio.activo) {
+        return NextResponse.json({ error: `El servicio "${servicio.nombre}" está inactivo` }, { status: 400 })
+      }
+      elegidos.push(servicio)
+    }
+
+    // 6. Calcular hora de fin y comprobar que el peluquero esté libre
+    const duracionTotal = elegidos.reduce((total, s) => total + s.duracion_minutos, 0)
+    const inicioIso = inicioFecha.toISOString()
+    const fin = new Date(inicioFecha.getTime() + duracionTotal * 60000).toISOString()
+
+    const { cruce, error: cruceError } = await buscarCruce(supabase, {
+      peluqueroId: peluquero_id,
+      inicio: inicioIso,
+      fin,
+    })
+    if (cruceError) {
+      return NextResponse.json({ error: cruceError.message }, { status: 500 })
+    }
+    if (cruce) {
+      return NextResponse.json({ error: describirCruce(cruce) }, { status: 409 })
+    }
+
+    // 7. Crear la cita
     const { data: cita, error: citaError } = await supabase
       .from('citas')
       .insert({
         peluqueria_id: usuario.peluqueria_id,
         cliente_id,
         peluquero_id,
-        inicio,
+        inicio: inicioIso,
         fin,
         estado: 'pendiente',
         notas: notas || null,
@@ -216,12 +270,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: citaError.message }, { status: 500 })
     }
 
-    // 7. Insertar servicios de la cita
-    const citaServiciosInsert = servicios.map((s: any) => ({
+    // 8. Insertar servicios de la cita con el precio y la duración de hoy
+    const citaServiciosInsert = elegidos.map((s) => ({
       cita_id: cita.id,
-      servicio_id: s.servicio_id,
-      precio_congelado_clp: s.precio,
-      duracion_congelada_min: s.duracion,
+      servicio_id: s.id,
+      precio_congelado_clp: s.precio_clp,
+      duracion_congelada_min: s.duracion_minutos,
     }))
 
     const { error: csError } = await supabase

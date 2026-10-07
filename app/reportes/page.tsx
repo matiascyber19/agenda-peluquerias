@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Navbar from '../components/Navbar'
 import { INPUT, LABEL } from '../components/estilos'
 
@@ -77,33 +77,38 @@ export default function ReportesPage() {
 
   const [desde, setDesde] = useState(primerDiaDelMes)
   const [hasta, setHasta] = useState(hoy)
-  const [reporte, setReporte] = useState<Reporte | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
 
-  const cargar = useCallback(() => {
-    setLoading(true)
-    setError('')
+  // La respuesta recuerda qué período pidió: mientras no coincida con el
+  // seleccionado, el reporte está cargando. Así el efecto no necesita
+  // hacer setLoading(true) de forma síncrona.
+  const consulta = `${desde}|${hasta}`
+  const [respuesta, setRespuesta] = useState<{
+    consulta: string
+    reporte: Reporte | null
+    error: string
+  }>({ consulta: '', reporte: null, error: '' })
+  const loading = respuesta.consulta !== consulta
+  const error = loading ? '' : respuesta.error
+  const reporte = respuesta.reporte
 
+  useEffect(() => {
+    const controller = new AbortController()
     const params = new URLSearchParams({ desde, hasta })
 
-    fetch(`/api/reportes?${params.toString()}`)
+    fetch(`/api/reportes?${params.toString()}`, { signal: controller.signal })
       .then(async (res) => {
         const json = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(json.error ?? 'No pudimos cargar el reporte')
         return json as Reporte
       })
-      .then(setReporte)
+      .then((reporte) => setRespuesta({ consulta, reporte, error: '' }))
       .catch((err) => {
-        setError(err.message)
-        setReporte(null)
+        if (err.name === 'AbortError') return
+        setRespuesta({ consulta, reporte: null, error: err.message })
       })
-      .finally(() => setLoading(false))
-  }, [desde, hasta])
 
-  useEffect(() => {
-    cargar()
-  }, [cargar])
+    return () => controller.abort()
+  }, [consulta, desde, hasta])
 
   const maxMedio = reporte
     ? Math.max(...Object.values(reporte.ventas.ingresosPorMedioPago), 0)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Modal from './Modal'
 import { INPUT, LABEL, BOTON_CREAR, BOTON_SECUNDARIO } from './estilos'
 
@@ -20,25 +20,23 @@ interface Props {
   servicio?: Servicio | null
 }
 
-export default function ModalServicio({ abierto, onCerrar, onGuardado, servicio }: Props) {
+// El formulario se monta cada vez que el modal se abre, así parte con los datos
+// del servicio sin tener que resetearlo en un efecto.
+export default function ModalServicio({ abierto, ...props }: Props) {
+  if (!abierto) return null
+  return <FormularioServicio key={props.servicio?.id ?? 'nuevo'} {...props} />
+}
+
+function FormularioServicio({ onCerrar, onGuardado, servicio }: Omit<Props, 'abierto'>) {
   const editando = Boolean(servicio)
 
-  const [nombre, setNombre] = useState('')
-  const [descripcion, setDescripcion] = useState('')
-  const [duracion, setDuracion] = useState('30')
-  const [precio, setPrecio] = useState('0')
+  const [nombre, setNombre] = useState(servicio?.nombre ?? '')
+  const [descripcion, setDescripcion] = useState(servicio?.descripcion ?? '')
+  const [duracion, setDuracion] = useState(String(servicio?.duracion_minutos ?? 30))
+  const [precio, setPrecio] = useState(String(servicio?.precio_clp ?? 0))
 
   const [error, setError] = useState('')
   const [guardando, setGuardando] = useState(false)
-
-  useEffect(() => {
-    if (!abierto) return
-    setNombre(servicio?.nombre ?? '')
-    setDescripcion(servicio?.descripcion ?? '')
-    setDuracion(String(servicio?.duracion_minutos ?? 30))
-    setPrecio(String(servicio?.precio_clp ?? 0))
-    setError('')
-  }, [abierto, servicio])
 
   async function guardar() {
     if (!nombre.trim()) return setError('Escribe el nombre del servicio')
@@ -91,7 +89,7 @@ export default function ModalServicio({ abierto, onCerrar, onGuardado, servicio 
     <Modal
       titulo={editando ? 'Editar servicio' : 'Nuevo servicio'}
       descripcion={editando ? undefined : 'Define un servicio que ofrece tu peluquería'}
-      abierto={abierto}
+      abierto
       onCerrar={onCerrar}
     >
       <form

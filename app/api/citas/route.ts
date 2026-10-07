@@ -140,7 +140,9 @@ export async function GET(request: Request) {
 
 // ============================================
 // POST /api/citas
-// Crea una cita nueva
+// Crea una cita desde el panel. Nace 'confirmada': la agenda la crea la propia
+// peluquería, y una cita confirmada pasa sola a 'completada' una hora después
+// de terminar (supabase/migraciones/002_completar_citas_automaticamente.sql).
 // Body esperado:
 // {
 //   cliente_id: "uuid",
@@ -264,7 +266,7 @@ export async function POST(request: Request) {
         peluquero_id,
         inicio: inicioIso,
         fin,
-        estado: 'pendiente',
+        estado: 'confirmada',
         notas: notas || null,
       })
       .select()

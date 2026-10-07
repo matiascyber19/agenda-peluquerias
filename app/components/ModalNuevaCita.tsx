@@ -49,6 +49,9 @@ function formatearCLP(monto: number) {
   })
 }
 
+// Valor del selector de cliente que pide crear uno nuevo con nombre y teléfono.
+const CLIENTE_NUEVO = '__nuevo__'
+
 // El formulario se monta cada vez que el modal se abre, así parte limpio sin
 // tener que resetearlo en un efecto.
 export default function ModalNuevaCita({ abierto, ...props }: Props) {
@@ -63,6 +66,8 @@ function FormularioNuevaCita({ onCerrar, onCreada, fechaInicial }: Omit<Props, '
   const [cargandoDatos, setCargandoDatos] = useState(true)
 
   const [clienteId, setClienteId] = useState('')
+  const [nuevoNombre, setNuevoNombre] = useState('')
+  const [nuevoTelefono, setNuevoTelefono] = useState('')
   const [peluqueroId, setPeluqueroId] = useState('')
   const [fecha, setFecha] = useState(() => fechaInicial ?? hoyLocal())
   const [hora, setHora] = useState('10:00')
@@ -120,8 +125,18 @@ function FormularioNuevaCita({ onCerrar, onCreada, fechaInicial }: Omit<Props, '
     )
   }
 
+  // Sin clientes registrados, la cita solo puede ser para uno nuevo.
+  const esClienteNuevo = clienteId === CLIENTE_NUEVO || clientes.length === 0
+
   async function guardar() {
-    if (!clienteId) return setError('Elige un cliente')
+    if (esClienteNuevo) {
+      if (!nuevoNombre.trim()) return setError('Escribe el nombre del cliente')
+      if (nuevoTelefono.replace(/\D/g, '').length < 8) {
+        return setError('El teléfono debe tener al menos 8 dígitos')
+      }
+    } else if (!clienteId) {
+      return setError('Elige un cliente')
+    }
     if (!peluqueroId) return setError('Elige un peluquero')
     if (!fecha || !hora) return setError('Elige fecha y hora')
     if (seleccionados.length === 0) return setError('Elige al menos un servicio')
@@ -133,11 +148,27 @@ function FormularioNuevaCita({ onCerrar, onCreada, fechaInicial }: Omit<Props, '
     setError('')
 
     try {
+      let idCliente = clienteId
+      if (esClienteNuevo) {
+        // Si ya hay un cliente con ese teléfono, la API lo devuelve en vez de duplicarlo.
+        const resCliente = await fetch('/api/clientes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nombre: nuevoNombre.trim(), telefono: nuevoTelefono.trim() }),
+        })
+        const jsonCliente = await resCliente.json().catch(() => ({}))
+        if (!resCliente.ok) {
+          setError(jsonCliente.error ?? 'No pudimos registrar al cliente')
+          return
+        }
+        idCliente = jsonCliente.cliente.id
+      }
+
       const res = await fetch('/api/citas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          cliente_id: clienteId,
+          cliente_id: idCliente,
           peluquero_id: peluqueroId,
           inicio: inicio.toISOString(),
           // Precio y duración los toma la API de la tabla servicios.
@@ -162,8 +193,8 @@ function FormularioNuevaCita({ onCerrar, onCreada, fechaInicial }: Omit<Props, '
     }
   }
 
-  const faltanDatos =
-    !cargandoDatos && (clientes.length === 0 || peluqueros.length === 0 || servicios.length === 0)
+  // Los clientes no hacen falta de antemano: se pueden crear aquí mismo.
+  const faltanDatos = !cargandoDatos && (peluqueros.length === 0 || servicios.length === 0)
 
   return (
     <Modal
@@ -181,14 +212,6 @@ function FormularioNuevaCita({ onCerrar, onCreada, fechaInicial }: Omit<Props, '
           {error && <p className="mb-3 text-sm text-red-500">{error}</p>}
           <p className="text-sm text-gray-600">Antes de agendar necesitas tener cargado:</p>
           <ul className="mt-3 space-y-2 text-sm">
-            {clientes.length === 0 && (
-              <li>
-                · Al menos un cliente —{' '}
-                <Link href="/clientes" className="font-medium text-slate-800 hover:underline">
-                  ir a Clientes
-                </Link>
-              </li>
-            )}
             {peluqueros.length === 0 && (
               <li>
                 · Al menos un peluquero activo —{' '}
@@ -220,11 +243,12 @@ function FormularioNuevaCita({ onCerrar, onCreada, fechaInicial }: Omit<Props, '
               <label htmlFor="cliente" className={LABEL}>Cliente</label>
               <select
                 id="cliente"
-                value={clienteId}
+                value={clientes.length === 0 ? CLIENTE_NUEVO : clienteId}
                 onChange={(e) => setClienteId(e.target.value)}
                 className={INPUT}
               >
-                <option value="">Selecciona un cliente</option>
+                {clientes.length > 0 && <option value="">Selecciona un cliente</option>}
+                <option value={CLIENTE_NUEVO}>+ Cliente nuevo</option>
                 {clientes.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.nombre}
@@ -248,6 +272,34 @@ function FormularioNuevaCita({ onCerrar, onCreada, fechaInicial }: Omit<Props, '
                 ))}
               </select>
             </div>
+
+            {/* Cliente nuevo: solo lo justo para agendar; el resto se completa en su ficha. */}
+            {esClienteNuevo && (
+              <>
+                <div>
+                  <label htmlFor="nuevoNombre" className={LABEL}>Nombre del cliente</label>
+                  <input
+                    id="nuevoNombre"
+                    type="text"
+                    value={nuevoNombre}
+                    onChange={(e) => setNuevoNombre(e.target.value)}
+                    placeholder="Juan González"
+                    className={INPUT}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="nuevoTelefono" className={LABEL}>Teléfono</label>
+                  <input
+                    id="nuevoTelefono"
+                    type="tel"
+                    value={nuevoTelefono}
+                    onChange={(e) => setNuevoTelefono(e.target.value)}
+                    placeholder="+56 9 1234 5678"
+                    className={INPUT}
+                  />
+                </div>
+              </>
+            )}
 
             <div>
               <label htmlFor="fecha" className={LABEL}>Fecha</label>

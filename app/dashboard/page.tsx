@@ -39,7 +39,7 @@ interface DashboardData {
 
 const accesosRapidos: { icon: string; label: string; href?: string }[] = [
   { icon: "📅", label: "Nueva cita", href: "/agenda?nueva=1" },
-  { icon: "👤", label: "Nuevo cliente", href: "/clientes?nuevo=1" },
+  { icon: "👤", label: "Clientes", href: "/clientes" },
   { icon: "✂️", label: "Servicios", href: "/servicios" },
   { icon: "📊", label: "Reportes", href: "/reportes" },
 ]

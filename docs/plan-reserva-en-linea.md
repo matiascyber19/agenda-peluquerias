@@ -89,7 +89,7 @@ alter table public.citas add constraint estado_valido check (
 commit;
 ```
 
-### 6.2 Migración 002: cierre automático de citas (lista para ejecutar)
+### 6.2 Migración 002: cierre automático de citas (✅ ejecutada el 7 de octubre)
 
 Archivo: `supabase/migraciones/002_completar_citas_automaticamente.sql`.
 

@@ -147,10 +147,12 @@ export default function SeccionContacto() {
               <button type="button" onClick={copiarEnlace} className={BOTON_SECUNDARIO}>
                 {copiado ? 'Copiado ✓' : 'Copiar'}
               </button>
+              <a href={enlace} target="_blank" rel="noopener noreferrer" className={BOTON_SECUNDARIO}>
+                Abrir
+              </a>
             </div>
             <p className="mt-1.5 text-xs text-gray-400">
-              Compártelo en Instagram o WhatsApp para que tus clientes reserven solos. La página de reservas
-              estará disponible pronto.
+              Compártelo en Instagram o WhatsApp para que tus clientes reserven solos.
             </p>
           </div>
 

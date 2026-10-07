@@ -98,9 +98,9 @@ Archivo: `supabase/migraciones/002_completar_citas_automaticamente.sql`.
 - Programa el job `completar-citas-terminadas` cada 15 minutos. Si se vuelve a ejecutar el archivo, el job con el mismo nombre se reemplaza.
 - Las citas `pendiente` y `solicitada` no se tocan.
 
-### 6.3 Migración 003: funciones públicas (especificación)
+### 6.3 Migración 003: funciones públicas (✅ ejecutada el 7 de octubre)
 
-El SQL definitivo va en su propio archivo y **se prueba en local antes de ejecutarlo en Supabase**. Todas las funciones son `security definer` con `search_path` fijo. Se les quita `execute` a `public` y se les da solo a `anon` y `authenticated`. Exponen únicamente lo necesario para reservar.
+Archivo: `supabase/migraciones/003_reserva_publica.sql`, probado antes en un Postgres local (PGlite) con 38 casos. Las tres funciones públicas son `security definer` con `search_path` fijo; se les quita `execute` a `public` y se les da solo a `anon` y `authenticated`, y exponen únicamente lo necesario para reservar. Las auxiliares (`reserva_horas_libres` y `reserva_duracion`) no se pueden llamar desde la API.
 
 **`normalizar_telefono(text) → text`** (`immutable`): devuelve los últimos 9 dígitos. `+56 9 6666 6666`, `966666666` y `56966666666` dan el mismo resultado. Va con un índice en `clientes (peluqueria_id, normalizar_telefono(telefono))`.
 
@@ -206,7 +206,7 @@ Cada paso es un PR a `dev` que se puede desplegar sin romper lo anterior.
 1. ✅ **Estados nuevos.** Ejecutar la migración 001 y hacer los ajustes de backend del §7 y la etiqueta de la ficha. Es seguro desplegarlo: nada crea solicitudes todavía.
    - En paralelo, **clientes y cierre automático** (§13), en su propio PR, más la migración 002.
 2. ✅ **Configuración.** Las APIs de horarios, bloqueos y configuración, la página `/configuracion`, el enlace en el Navbar y `proxy.ts`.
-3. **Reserva pública.**
+3. ✅ **Reserva pública.**
    - Probar la migración 003 en local con el esquema exportado y ejecutarla en Supabase.
    - Hacer las rutas públicas y la página `/reservar/[slug]`.
 4. **Solicitudes y avisos.** La página `/solicitudes`, el contador del Navbar, la tarjeta del dashboard y el correo.

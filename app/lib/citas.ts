@@ -3,7 +3,15 @@ import type { createClient } from './supabase/server'
 type Supabase = Awaited<ReturnType<typeof createClient>>
 
 /** Estados que dejan libre el horario del peluquero. */
-const ESTADOS_SIN_HORARIO = ['cancelada', 'no_show']
+const ESTADOS_SIN_HORARIO = ['cancelada', 'no_show', 'rechazada']
+
+/**
+ * Filtro de PostgREST (para `.or()`) que deja fuera las reservas en línea que
+ * todavía no son citas de la agenda: la solicitud sin responder y la rechazada.
+ * La agenda, el dashboard y las estadísticas lo usan. Incluye `estado` nulo
+ * porque `not.in` lo descartaría.
+ */
+export const FILTRO_CITAS_DE_AGENDA = 'estado.is.null,estado.not.in.(solicitada,rechazada)'
 
 export function ocupaHorario(estado: string) {
   return !ESTADOS_SIN_HORARIO.includes(estado)

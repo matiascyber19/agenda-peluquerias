@@ -7,13 +7,15 @@ import { NextResponse } from 'next/server'
 // Actualiza una cita existente
 // Body esperado (todos opcionales):
 // {
-//   estado: "confirmada" | "completada" | "cancelada" | "no_show" | "pendiente",
+//   estado: "confirmada" | "completada" | "cancelada" | "no_show" | "pendiente" | "rechazada",
 //   inicio: "2026-06-08T15:00:00Z",
 //   fin: "2026-06-08T15:30:00Z",
 //   notas: "texto",
 //   peluquero_id: "uuid",
 //   cliente_id: "uuid"
 // }
+// Reservas en línea: una cita 'solicitada' solo pasa a 'confirmada'
+// (opcionalmente con otra hora o peluquero) o a 'rechazada', que es final.
 // ============================================
 export async function PATCH(
   request: Request,
@@ -34,7 +36,13 @@ export async function PATCH(
     const { estado, inicio, fin, notas, peluquero_id, cliente_id } = body
 
     // 3. Validar estado si viene
-    const estadosValidos = ['pendiente', 'confirmada', 'completada', 'cancelada', 'no_show']
+    const estadosValidos = ['pendiente', 'confirmada', 'completada', 'cancelada', 'no_show', 'rechazada']
+    if (estado === 'solicitada') {
+      return NextResponse.json(
+        { error: 'Solo una reserva en línea puede quedar como solicitada' },
+        { status: 400 }
+      )
+    }
     if (estado && !estadosValidos.includes(estado)) {
       return NextResponse.json(
         { error: `Estado inválido. Valores permitidos: ${estadosValidos.join(', ')}` },
@@ -73,6 +81,26 @@ export async function PATCH(
 
     if (!actual) {
       return NextResponse.json({ error: 'Cita no encontrada' }, { status: 404 })
+    }
+
+    // Transiciones de las reservas en línea
+    if (actual.estado === 'rechazada') {
+      return NextResponse.json(
+        { error: 'Una solicitud rechazada no se puede modificar' },
+        { status: 400 }
+      )
+    }
+    if (actual.estado === 'solicitada' && estado !== undefined && estado !== 'confirmada' && estado !== 'rechazada') {
+      return NextResponse.json(
+        { error: 'Una solicitud solo puede confirmarse o rechazarse' },
+        { status: 400 }
+      )
+    }
+    if (estado === 'rechazada' && actual.estado !== 'solicitada') {
+      return NextResponse.json(
+        { error: 'Solo una solicitud en línea puede rechazarse; una cita se cancela' },
+        { status: 400 }
+      )
     }
 
     // Si se mueve el inicio sin indicar el fin, la cita conserva su duración.

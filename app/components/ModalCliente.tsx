@@ -18,26 +18,24 @@ interface Props {
   abierto: boolean
   onCerrar: () => void
   onGuardado: () => void
-  /** Si viene, el modal edita ese cliente (PATCH); si no, crea uno nuevo (POST). */
-  cliente?: ClienteEditable | null
+  /** Cliente a editar. Los clientes nuevos se crean al reservar o desde "Nueva cita". */
+  cliente: ClienteEditable
 }
 
 // El formulario se monta cada vez que el modal se abre, así parte con los datos
 // del cliente sin tener que resetearlo en un efecto.
 export default function ModalCliente({ abierto, ...props }: Props) {
   if (!abierto) return null
-  return <FormularioCliente key={props.cliente?.id ?? 'nuevo'} {...props} />
+  return <FormularioCliente key={props.cliente.id} {...props} />
 }
 
 function FormularioCliente({ onCerrar, onGuardado, cliente }: Omit<Props, 'abierto'>) {
-  const editando = Boolean(cliente)
-
-  const [nombre, setNombre] = useState(cliente?.nombre ?? '')
-  const [telefono, setTelefono] = useState(cliente?.telefono ?? '')
-  const [email, setEmail] = useState(cliente?.email ?? '')
-  const [cumpleanos, setCumpleanos] = useState(cliente?.cumpleanos ?? '')
-  const [comoLlego, setComoLlego] = useState(cliente?.como_llego ?? '')
-  const [notas, setNotas] = useState(cliente?.notas ?? '')
+  const [nombre, setNombre] = useState(cliente.nombre)
+  const [telefono, setTelefono] = useState(cliente.telefono ?? '')
+  const [email, setEmail] = useState(cliente.email ?? '')
+  const [cumpleanos, setCumpleanos] = useState(cliente.cumpleanos ?? '')
+  const [comoLlego, setComoLlego] = useState(cliente.como_llego ?? '')
+  const [notas, setNotas] = useState(cliente.notas ?? '')
 
   const [error, setError] = useState('')
   const [guardando, setGuardando] = useState(false)
@@ -61,14 +59,11 @@ function FormularioCliente({ onCerrar, onGuardado, cliente }: Omit<Props, 'abier
     }
 
     try {
-      const res = await fetch(
-        editando ? `/api/clientes/${cliente!.id}` : '/api/clientes',
-        {
-          method: editando ? 'PATCH' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(cuerpo),
-        }
-      )
+      const res = await fetch(`/api/clientes/${cliente.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cuerpo),
+      })
 
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -87,12 +82,7 @@ function FormularioCliente({ onCerrar, onGuardado, cliente }: Omit<Props, 'abier
   }
 
   return (
-    <Modal
-      titulo={editando ? 'Editar cliente' : 'Nuevo cliente'}
-      descripcion={editando ? undefined : 'Agrega un cliente a tu peluquería'}
-      abierto
-      onCerrar={onCerrar}
-    >
+    <Modal titulo="Editar cliente" abierto onCerrar={onCerrar}>
       <form
         className="space-y-5"
         onSubmit={(e) => {
@@ -180,7 +170,7 @@ function FormularioCliente({ onCerrar, onGuardado, cliente }: Omit<Props, 'abier
             Cancelar
           </button>
           <button type="submit" disabled={guardando} className={BOTON_CREAR}>
-            {guardando ? 'Guardando...' : editando ? 'Guardar cambios' : 'Crear cliente'}
+            {guardando ? 'Guardando...' : 'Guardar cambios'}
           </button>
         </div>
       </form>

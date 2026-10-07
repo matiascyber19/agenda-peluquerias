@@ -42,7 +42,16 @@ interface Ficha {
     gastoTotal: number
     promedioGasto: number
     ultimaVisita: string | null
+    serviciosFrecuentes: { nombre: string; veces: number }[]
+    cadaCuantosDias: number | null
   }
+}
+
+function describirFrecuencia(dias: number | null) {
+  if (dias === null) return null
+  if (dias < 14) return `Viene cada ~${dias} ${dias === 1 ? 'día' : 'días'}`
+  if (dias < 60) return `Viene cada ~${Math.round(dias / 7)} semanas`
+  return `Viene cada ~${Math.round(dias / 30)} meses`
 }
 
 // Supabase entrega las relaciones embebidas como objeto o como arreglo de uno.
@@ -176,6 +185,7 @@ export default function FichaClientePage({ params }: { params: Promise<{ id: str
   }
 
   const { cliente, historial, estadisticas } = ficha
+  const frecuencia = describirFrecuencia(estadisticas.cadaCuantosDias)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -236,6 +246,28 @@ export default function FichaClientePage({ params }: { params: Promise<{ id: str
               {tarjeta.extra && <p className="mt-1 text-xs text-gray-400">{tarjeta.extra}</p>}
             </div>
           ))}
+        </div>
+
+        {/* Lo que suele pedir, según sus visitas completadas */}
+        <div className="mb-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-semibold text-gray-800">Lo que suele pedir</h2>
+            {frecuencia && <span className="text-sm text-gray-500">{frecuencia}</span>}
+          </div>
+          {estadisticas.serviciosFrecuentes.length === 0 ? (
+            <p className="text-sm text-gray-400">Todavía no tiene visitas completadas</p>
+          ) : (
+            <ul className="space-y-2">
+              {estadisticas.serviciosFrecuentes.map((servicio) => (
+                <li key={servicio.nombre} className="flex items-center justify-between text-sm">
+                  <span className="font-medium text-gray-800">{servicio.nombre}</span>
+                  <span className="text-gray-500">
+                    {servicio.veces} {servicio.veces === 1 ? 'vez' : 'veces'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Datos extra */}

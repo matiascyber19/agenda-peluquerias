@@ -1,4 +1,5 @@
 import { createClient } from '@/app/lib/supabase/server'
+import { FILTRO_CITAS_DE_AGENDA } from '@/app/lib/citas'
 import { NextResponse } from 'next/server'
 
 // ============================================
@@ -127,6 +128,8 @@ export async function GET(
         .from('citas')
         .select('inicio, estado')
         .eq('cliente_id', id)
+        // Las solicitudes en línea sin confirmar o rechazadas no son citas del cliente.
+        .or(FILTRO_CITAS_DE_AGENDA)
 
     if (citasEstadisticasError) {
       return NextResponse.json(

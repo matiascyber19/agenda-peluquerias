@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
 import { uno } from '@/app/lib/supabase/embebido'
+import { FILTRO_CITAS_DE_AGENDA } from '@/app/lib/citas'
 
 const ZONA = 'America/Santiago'
 
@@ -81,6 +82,7 @@ export async function GET() {
     `)
     .gte('inicio', hoyInicio)
     .lt('inicio', hoyFin)
+    .or(FILTRO_CITAS_DE_AGENDA)
     .order('inicio', { ascending: true })
 
   const citas = citasHoy || []

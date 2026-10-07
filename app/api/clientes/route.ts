@@ -1,4 +1,5 @@
 import { createClient } from '@/app/lib/supabase/server'
+import { normalizarTelefono, serviciosFrecuentes } from '@/app/lib/clientes'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
@@ -14,6 +15,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const buscar = searchParams.get('buscar')
   const bloqueado = searchParams.get('bloqueado')
+  // ?vista=atendidos: solo quienes tienen una cita completada, por visita más reciente.
+  // ?vista=sin-atender: quienes todavía no completan ninguna (p. ej. solo reservaron).
+  const vista = searchParams.get('vista')
   // Un ?limit inválido o desmedido no debe llegar a la consulta.
   const limitPedido = Number(searchParams.get('limit'))
   const limit =
@@ -35,7 +39,7 @@ export async function GET(request: Request) {
       citas(
       inicio,
       estado,
-      cita_servicios(id)
+      cita_servicios(id, servicios(nombre))
       ),
       ventas(
       total_clp
@@ -65,7 +69,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const clientes = (data || []).map((cliente) => {
+  let clientes = (data || []).map((cliente) => {
     const citasCompletadas = (cliente.citas || [])
       .filter((cita) => cita.estado === 'completada')
       .sort((a, b) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime())
@@ -90,9 +94,20 @@ export async function GET(request: Request) {
       creado_en:cliente.creado_en,
       ultimaVisita: citasCompletadas[0]?.inicio || null,
       servicios: cantidadServicios,
+      servicioHabitual: serviciosFrecuentes(citasCompletadas, 1)[0] ?? null,
       gasto: gastoTotal,
     }
   })
+
+  // Las vistas se resuelven sobre los clientes ya leídos (hasta `limit`):
+  // PostgREST no puede ordenar por la fecha de una relación embebida.
+  if (vista === 'atendidos') {
+    clientes = clientes
+      .filter((cliente) => cliente.ultimaVisita)
+      .sort((a, b) => new Date(b.ultimaVisita!).getTime() - new Date(a.ultimaVisita!).getTime())
+  } else if (vista === 'sin-atender') {
+    clientes = clientes.filter((cliente) => !cliente.ultimaVisita)
+  }
 
   return NextResponse.json({clientes, total:clientes.length,})
 }
@@ -142,7 +157,30 @@ export async function POST(request: Request) {
       )
     }
 
-    // 6. Crear el cliente
+    // 6. Si ya hay un cliente con ese teléfono se reutiliza: desde "Nueva cita"
+    //    se crea con solo nombre y teléfono, y no debe duplicar fichas.
+    const { data: existentes, error: existentesError } = await supabase
+      .from('clientes')
+      .select('id, nombre, telefono, bloqueado')
+      .eq('peluqueria_id', usuario.peluqueria_id)
+
+    if (existentesError) {
+      return NextResponse.json({ error: existentesError.message }, { status: 500 })
+    }
+
+    const existente = (existentes ?? []).find(
+      (cliente) => normalizarTelefono(cliente.telefono) === normalizarTelefono(telefono)
+    )
+    if (existente) {
+      return NextResponse.json({
+        success: true,
+        existente: true,
+        cliente: existente,
+        message: `Ya existía un cliente con ese teléfono: ${existente.nombre}`,
+      })
+    }
+
+    // 7. Crear el cliente
     const { data, error } = await supabase
       .from('clientes')
       .insert({

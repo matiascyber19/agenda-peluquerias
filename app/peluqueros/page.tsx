@@ -18,10 +18,9 @@ export default function PeluquerosPage() {
   const [enEdicion, setEnEdicion] = useState<Peluquero | null>(null)
   const [cambiandoId, setCambiandoId] = useState('')
 
-  const cargar = useCallback(() => {
-    setLoading(true)
-    setError('')
-
+  // Solo toca el estado cuando llega la respuesta, para poder llamarla desde el
+  // efecto de montaje sin provocar renders en cascada.
+  const pedirPeluqueros = useCallback(() => {
     fetch('/api/peluqueros')
       .then(async (res) => {
         const json = await res.json().catch(() => ({}))
@@ -37,8 +36,14 @@ export default function PeluquerosPage() {
   }, [])
 
   useEffect(() => {
-    cargar()
-  }, [cargar])
+    pedirPeluqueros()
+  }, [pedirPeluqueros])
+
+  function cargar() {
+    setLoading(true)
+    setError('')
+    pedirPeluqueros()
+  }
 
   async function alternarActivo(peluquero: Peluquero) {
     setCambiandoId(peluquero.id)

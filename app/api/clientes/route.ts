@@ -65,15 +65,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const clientes = (data || []).map((cliente: any)=>{
-    const citasCompletadas = (cliente.citas || []).filter((cita:any) => cita.estado === 'completada')
-  .sort((a: any, b:any) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime())
-  
-  const cantidadServicios = (cliente.citas || []).reduce((total: number, cita: any) => 
-    total + (cita.cita_servicios?.length || 0),0)
+  const clientes = (data || []).map((cliente) => {
+    const citasCompletadas = (cliente.citas || [])
+      .filter((cita) => cita.estado === 'completada')
+      .sort((a, b) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime())
 
-  const gastoTotal = (cliente.ventas || []).reduce(
-    (total: number, venta: any) => total + (venta.total_clp || 0),0)
+    // Solo servicios ya realizados, igual que la última visita: una cita
+    // pendiente todavía no cuenta como servicio prestado.
+    const cantidadServicios = citasCompletadas.reduce(
+      (total, cita) => total + (cita.cita_servicios?.length || 0), 0)
+
+    const gastoTotal = (cliente.ventas || []).reduce(
+      (total, venta) => total + (venta.total_clp || 0), 0)
 
     return{
       id:cliente.id,

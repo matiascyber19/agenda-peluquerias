@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Modal from './Modal'
 import { INPUT, LABEL, BOTON_CREAR, BOTON_SECUNDARIO } from './estilos'
 
@@ -22,29 +22,25 @@ interface Props {
   cliente?: ClienteEditable | null
 }
 
-export default function ModalCliente({ abierto, onCerrar, onGuardado, cliente }: Props) {
+// El formulario se monta cada vez que el modal se abre, así parte con los datos
+// del cliente sin tener que resetearlo en un efecto.
+export default function ModalCliente({ abierto, ...props }: Props) {
+  if (!abierto) return null
+  return <FormularioCliente key={props.cliente?.id ?? 'nuevo'} {...props} />
+}
+
+function FormularioCliente({ onCerrar, onGuardado, cliente }: Omit<Props, 'abierto'>) {
   const editando = Boolean(cliente)
 
-  const [nombre, setNombre] = useState('')
-  const [telefono, setTelefono] = useState('')
-  const [email, setEmail] = useState('')
-  const [cumpleanos, setCumpleanos] = useState('')
-  const [comoLlego, setComoLlego] = useState('')
-  const [notas, setNotas] = useState('')
+  const [nombre, setNombre] = useState(cliente?.nombre ?? '')
+  const [telefono, setTelefono] = useState(cliente?.telefono ?? '')
+  const [email, setEmail] = useState(cliente?.email ?? '')
+  const [cumpleanos, setCumpleanos] = useState(cliente?.cumpleanos ?? '')
+  const [comoLlego, setComoLlego] = useState(cliente?.como_llego ?? '')
+  const [notas, setNotas] = useState(cliente?.notas ?? '')
 
   const [error, setError] = useState('')
   const [guardando, setGuardando] = useState(false)
-
-  useEffect(() => {
-    if (!abierto) return
-    setNombre(cliente?.nombre ?? '')
-    setTelefono(cliente?.telefono ?? '')
-    setEmail(cliente?.email ?? '')
-    setCumpleanos(cliente?.cumpleanos ?? '')
-    setComoLlego(cliente?.como_llego ?? '')
-    setNotas(cliente?.notas ?? '')
-    setError('')
-  }, [abierto, cliente])
 
   async function guardar() {
     if (!nombre.trim()) return setError('Escribe el nombre del cliente')
@@ -94,7 +90,7 @@ export default function ModalCliente({ abierto, onCerrar, onGuardado, cliente }:
     <Modal
       titulo={editando ? 'Editar cliente' : 'Nuevo cliente'}
       descripcion={editando ? undefined : 'Agrega un cliente a tu peluquería'}
-      abierto={abierto}
+      abierto
       onCerrar={onCerrar}
     >
       <form

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { use, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '../components/Navbar'
 import ModalCliente from '../components/ModalCliente'
@@ -17,14 +17,6 @@ interface Cliente {
   ultimaVisita: string | null
   servicios: number
   gasto: number
-}
-
-interface DatosDashboard {
-  usuario: {
-    nombre: string
-    rol: string
-    peluqueria: string
-  }
 }
 
 const FILTROS = [
@@ -52,25 +44,24 @@ function formatearFecha(iso: string | null) {
   })
 }
 
-export default function ClientesPage() {
+export default function ClientesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ nuevo?: string | string[] }>
+}) {
   const router = useRouter()
+  // El dashboard enlaza a /clientes?nuevo=1 para abrir el modal directamente.
+  const { nuevo } = use(searchParams)
 
-  const [clientes, setClientes] = useState<Cliente[]>([])
-  const [peluqueria, setPeluqueria] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [filtro, setFiltro] = useState('todos')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [modalAbierto, setModalAbierto] = useState(false)
+  const [modalAbierto, setModalAbierto] = useState(nuevo === '1')
   const [recarga, setRecarga] = useState(0)
 
-  // El dashboard enlaza a /clientes?nuevo=1 para abrir el modal directamente.
+  // Quita el parámetro para que recargar la página no vuelva a abrir el modal.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('nuevo') === '1') {
-      setModalAbierto(true)
-      window.history.replaceState(null, '', '/clientes')
-    }
-  }, [])
+    if (nuevo === '1') window.history.replaceState(null, '', '/clientes')
+  }, [nuevo])
 
   // debounce de la búsqueda: no dispara un fetch por cada tecla
   const [busquedaAplicada, setBusquedaAplicada] = useState('')
@@ -79,27 +70,22 @@ export default function ClientesPage() {
     return () => clearTimeout(t)
   }, [busqueda])
 
-  // Carga inicial: nombre de la peluquería para el Navbar.
-  useEffect(() => {
-    let cancelado = false
-    fetch('/api/dashboard')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json: DatosDashboard | null) => {
-        if (!cancelado && json?.usuario?.peluqueria) {
-          setPeluqueria(json.usuario.peluqueria)
-        }
-      })
-      .catch(() => {})
-    return () => {
-      cancelado = true
-    }
-  }, [])
+  // La respuesta recuerda qué búsqueda (y qué recarga) pidió: mientras no
+  // coincida con la actual, la lista está cargando. Así el efecto no
+  // necesita hacer setLoading(true) de forma síncrona.
+  const consulta = `${busquedaAplicada}|${filtro}|${recarga}`
+  const [respuesta, setRespuesta] = useState<{
+    consulta: string
+    clientes: Cliente[]
+    error: string
+  }>({ consulta: '', clientes: [], error: '' })
+  const loading = respuesta.consulta !== consulta
+  const error = loading ? '' : respuesta.error
+  const clientes = respuesta.clientes
 
   // Búsqueda en servidor: la API soporta ?buscar= y ?bloqueado=.
   useEffect(() => {
     const controller = new AbortController()
-    setLoading(true)
-    setError('')
 
     const params = new URLSearchParams()
     if (busquedaAplicada) params.set('buscar', busquedaAplicada)
@@ -112,16 +98,14 @@ export default function ClientesPage() {
         if (!res.ok) throw new Error(json.error ?? 'No se pudieron cargar los clientes')
         return json
       })
-      .then((json) => setClientes(json.clientes ?? []))
+      .then((json) => setRespuesta({ consulta, clientes: json.clientes ?? [], error: '' }))
       .catch((err) => {
         if (err.name === 'AbortError') return
-        setError(err.message)
-        setClientes([])
+        setRespuesta({ consulta, clientes: [], error: err.message })
       })
-      .finally(() => setLoading(false))
 
     return () => controller.abort()
-  }, [busquedaAplicada, filtro, recarga])
+  }, [consulta, busquedaAplicada, filtro])
 
   // "Sin visitar 60+ días" no existe como filtro en la API: se resuelve en cliente.
   const clientesFiltrados = useMemo(() => {
@@ -138,7 +122,7 @@ export default function ClientesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar peluqueria={peluqueria} />
+      <Navbar />
 
       <div className="max-w-6xl mx-auto px-6 py-8">
 

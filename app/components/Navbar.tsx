@@ -16,21 +16,20 @@ const enlaces = [
 
 export default function Navbar({ peluqueria }: { peluqueria?: string }) {
   const pathname = usePathname()
-  const [nombre, setNombre] = useState(peluqueria ?? '')
+  const [nombreApi, setNombreApi] = useState('')
   const [saliendo, setSaliendo] = useState(false)
 
   // Si la página ya conoce el nombre de la peluquería lo usa;
-  // si no, lo pide a /api/me (pendiente en backend: falla en silencio).
+  // si no, lo pide a /api/me (si falla, el nombre simplemente no se muestra).
+  const nombre = peluqueria || nombreApi
+
   useEffect(() => {
-    if (peluqueria) {
-      setNombre(peluqueria)
-      return
-    }
+    if (peluqueria) return
     let cancelado = false
     fetch('/api/me')
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
-        if (!cancelado && json?.peluqueria) setNombre(json.peluqueria)
+        if (!cancelado && json?.peluqueria) setNombreApi(json.peluqueria)
       })
       .catch(() => {})
     return () => {

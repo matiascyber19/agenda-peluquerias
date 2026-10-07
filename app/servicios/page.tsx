@@ -20,10 +20,9 @@ export default function ServiciosPage() {
   const [enEdicion, setEnEdicion] = useState<Servicio | null>(null)
   const [cambiandoId, setCambiandoId] = useState('')
 
-  const cargar = useCallback(() => {
-    setLoading(true)
-    setError('')
-
+  // Solo toca el estado cuando llega la respuesta, para poder llamarla desde el
+  // efecto de montaje sin provocar renders en cascada.
+  const pedirServicios = useCallback(() => {
     fetch('/api/servicios')
       .then(async (res) => {
         const json = await res.json().catch(() => ({}))
@@ -39,8 +38,14 @@ export default function ServiciosPage() {
   }, [])
 
   useEffect(() => {
-    cargar()
-  }, [cargar])
+    pedirServicios()
+  }, [pedirServicios])
+
+  function cargar() {
+    setLoading(true)
+    setError('')
+    pedirServicios()
+  }
 
   async function alternarActivo(servicio: Servicio) {
     setCambiandoId(servicio.id)

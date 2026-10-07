@@ -47,6 +47,8 @@ const accesosRapidos: { icon: string; label: string; href?: string }[] = [
 export default function DashboardPage() {
   const router = useRouter()
   const [data, setData] = useState<DashboardData | null>(null)
+  // Momento en que llegaron los datos: Date.now() no puede leerse durante el render.
+  const [cargadoEn, setCargadoEn] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -60,7 +62,10 @@ export default function DashboardPage() {
         return res.json()
       })
       .then((json) => {
-        if (json) setData(json)
+        if (json) {
+          setData(json)
+          setCargadoEn(Date.now())
+        }
       })
       .catch((err) => console.error("Error cargando dashboard:", err))
       .finally(() => setLoading(false))
@@ -96,7 +101,7 @@ export default function DashboardPage() {
 
   // Minutos hasta próxima cita
   const minutosParaProxima = data.proximaCita
-    ? Math.round((new Date(data.proximaCita.inicio).getTime() - Date.now()) / 60000)
+    ? Math.round((new Date(data.proximaCita.inicio).getTime() - cargadoEn) / 60000)
     : null
 
 

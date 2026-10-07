@@ -203,9 +203,9 @@ Las solicitudes se listan con la ruta que ya existe: `GET /api/citas?estado=soli
 
 Cada paso es un PR a `dev` que se puede desplegar sin romper lo anterior.
 
-1. **Estados nuevos.** Ejecutar la migración 001 y hacer los ajustes de backend del §7 y la etiqueta de la ficha. Es seguro desplegarlo: nada crea solicitudes todavía.
+1. ✅ **Estados nuevos.** Ejecutar la migración 001 y hacer los ajustes de backend del §7 y la etiqueta de la ficha. Es seguro desplegarlo: nada crea solicitudes todavía.
    - En paralelo, **clientes y cierre automático** (§13), en su propio PR, más la migración 002.
-2. **Configuración.** Las APIs de horarios, bloqueos y configuración, la página `/configuracion`, el enlace en el Navbar y `proxy.ts`.
+2. ✅ **Configuración.** Las APIs de horarios, bloqueos y configuración, la página `/configuracion`, el enlace en el Navbar y `proxy.ts`.
 3. **Reserva pública.**
    - Probar la migración 003 en local con el esquema exportado y ejecutarla en Supabase.
    - Hacer las rutas públicas y la página `/reservar/[slug]`.

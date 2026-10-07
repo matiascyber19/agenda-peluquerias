@@ -7,7 +7,7 @@
 
 Que el cliente reserve solo, desde un enlace público de la peluquería, y que el encargado solo tenga que revisar y responder.
 
-Hoy la peluquería crea al cliente a mano y elige los servicios por él: es lento y obliga a revisar varias veces. Este plan no cambia la gestión interna. Los servicios, peluqueros y clientes se siguen creando desde el panel, y el modal interno de "Nueva cita" queda como está.
+Hoy la peluquería crea al cliente a mano y elige los servicios por él: es lento y obliga a revisar varias veces. Los servicios y peluqueros se siguen creando desde el panel. Los clientes, en cambio, **ya no se crean a mano**: se agregan solos al reservar en línea, o desde "Nueva cita" con solo nombre y teléfono (§13).
 
 ## 2. Decisiones tomadas
 
@@ -23,6 +23,10 @@ Hoy la peluquería crea al cliente a mano y elige los servicios por él: es lent
 | Chat | No en la etapa 1. El botón de WhatsApp cubre "no puedo contactar al cliente" |
 | Horarios | Por peluquero, con la tabla `horarios`, que ya existe |
 | Clientes | Cada peluquería tiene su propia lista. El cliente se identifica por teléfono dentro de cada peluquería |
+| Alta de clientes | No hay "+ Nuevo cliente". Un cliente sin reserva se crea dentro de "Nueva cita" con nombre y teléfono; si el teléfono ya existe, se reutiliza esa ficha |
+| Lista de Clientes | Historial de atendidos (con al menos una cita completada), por visita más reciente, con el servicio habitual. La ficha muestra los servicios frecuentes y cada cuánto viene |
+| Citas del panel | Nacen `confirmada`, porque las agenda la propia peluquería |
+| Cierre de citas | Automático: una cita `confirmada` pasa a `completada` una hora después de terminar. El encargado solo marca las excepciones ("No llegó", "Cancelada") |
 
 ## 3. Flujo
 
@@ -49,9 +53,10 @@ Hoy la peluquería crea al cliente a mano y elige los servicios por él: es lent
 |---|---|---|---|---|
 | `solicitada` **(nuevo)** | Reserva en línea | No | Sí | `confirmada`, `rechazada` |
 | `rechazada` **(nuevo)** | El encargado rechaza una solicitud | No | No | Ninguno (es final) |
-| `pendiente` | Cita creada desde el panel | Sí | Sí | Como hoy |
-| `confirmada` | Solicitud aceptada, o cambio manual | Sí | Sí | Como hoy |
-| `completada`, `cancelada`, `no_show` | Como hoy | Sí (cancelada y no-show, tachadas) | Solo completada | Como hoy |
+| `pendiente` | Solo citas antiguas o cambio manual | Sí | Sí | Como hoy (no se cierra sola) |
+| `confirmada` | Cita creada desde el panel, o solicitud aceptada | Sí | Sí | `completada` **automáticamente** 1 hora después del fin, o a mano |
+| `completada` | Cierre automático, o a mano | Sí | Sí | `no_show` o `cancelada` si fue una excepción |
+| `cancelada`, `no_show` | A mano | Sí (tachadas) | No | Como hoy |
 
 ## 5. Lo que ya existe en la base
 
@@ -65,7 +70,7 @@ El esquema se exportó con `supabase/consultas/exportar_esquema.sql`. No hay que
 
 ## 6. Cambios en la base
 
-### 6.1 Migración A: estados nuevos (lista para ejecutar)
+### 6.1 Migración 001: estados nuevos (✅ ejecutada el 7 de octubre)
 
 Archivo: `supabase/migraciones/001_estados_solicitud.sql`. No rompe nada: todas las filas actuales siguen siendo válidas, y la app no usa los estados nuevos hasta la etapa siguiente.
 
@@ -84,7 +89,16 @@ alter table public.citas add constraint estado_valido check (
 commit;
 ```
 
-### 6.2 Migración B: funciones públicas (especificación)
+### 6.2 Migración 002: cierre automático de citas (lista para ejecutar)
+
+Archivo: `supabase/migraciones/002_completar_citas_automaticamente.sql`.
+
+- Activa `pg_cron`, equivalente a **Integrations → Cron** en el dashboard de Supabase.
+- Crea la función `completar_citas_terminadas()`, que pasa a `completada` las citas `confirmada` cuyo fin fue hace más de una hora. Se le quita `execute` a `public`, `anon` y `authenticated`, así que solo la ejecuta la tarea programada.
+- Programa el job `completar-citas-terminadas` cada 15 minutos. Si se vuelve a ejecutar el archivo, el job con el mismo nombre se reemplaza.
+- Las citas `pendiente` y `solicitada` no se tocan.
+
+### 6.3 Migración 003: funciones públicas (especificación)
 
 El SQL definitivo va en su propio archivo y **se prueba en local antes de ejecutarlo en Supabase**. Todas las funciones son `security definer` con `search_path` fijo. Se les quita `execute` a `public` y se les da solo a `anon` y `authenticated`. Exponen únicamente lo necesario para reservar.
 
@@ -103,7 +117,7 @@ El SQL definitivo va en su propio archivo y **se prueba en local antes de ejecut
 **`reserva_crear(p_slug, p_servicio_ids, p_peluquero_id, p_inicio timestamptz, p_nombre, p_telefono, p_email, p_notas) → jsonb`**
 
 1. **Bloqueo:** toma un bloqueo transaccional por peluquería (`pg_advisory_xact_lock`), para que dos solicitudes simultáneas no tomen la misma hora.
-2. **Validación:** vuelve a revisar todo con las reglas de §6.3:
+2. **Validación:** vuelve a revisar todo con las reglas de §6.4:
    - servicios activos de esa peluquería
    - hora libre
    - nombre de 2 a 120 caracteres
@@ -115,7 +129,7 @@ El SQL definitivo va en su propio archivo y **se prueba en local antes de ejecut
 6. **Inserción:** crea la cita en estado `solicitada` y su `cita_servicios` con el precio y la duración del catálogo.
 7. **Devuelve:** el `id` de la cita, el inicio, el fin, el peluquero, los servicios y el total. Nunca datos de la peluquería que no sean públicos.
 
-### 6.3 Reglas de disponibilidad
+### 6.4 Reglas de disponibilidad
 
 Para un peluquero `p`, la hora `t` está libre en la fecha `d`, con duración `D` (la suma de los servicios), si se cumple todo esto:
 
@@ -189,10 +203,11 @@ Las solicitudes se listan con la ruta que ya existe: `GET /api/citas?estado=soli
 
 Cada paso es un PR a `dev` que se puede desplegar sin romper lo anterior.
 
-1. **Estados nuevos.** Ejecutar la migración A y hacer los ajustes de backend del §7 y la etiqueta de la ficha. Es seguro desplegarlo: nada crea solicitudes todavía.
+1. **Estados nuevos.** Ejecutar la migración 001 y hacer los ajustes de backend del §7 y la etiqueta de la ficha. Es seguro desplegarlo: nada crea solicitudes todavía.
+   - En paralelo, **clientes y cierre automático** (§13), en su propio PR, más la migración 002.
 2. **Configuración.** Las APIs de horarios, bloqueos y configuración, la página `/configuracion`, el enlace en el Navbar y `proxy.ts`.
 3. **Reserva pública.**
-   - Probar la migración B en local con el esquema exportado y ejecutarla en Supabase.
+   - Probar la migración 003 en local con el esquema exportado y ejecutarla en Supabase.
    - Hacer las rutas públicas y la página `/reservar/[slug]`.
 4. **Solicitudes y avisos.** La página `/solicitudes`, el contador del Navbar, la tarjeta del dashboard y el correo.
 5. **Prueba completa** en el preview de Vercel con una peluquería de prueba. Después, `dev` → `main`.
@@ -205,13 +220,31 @@ Cada paso es un PR a `dev` que se puede desplegar sin romper lo anterior.
 - WhatsApp automático (API de Meta) y chat.
 - Acceso propio para peluqueros y recepcionistas. `usuarios.rol` ya los admite, pero las políticas RLS tienen que distinguir roles.
 - Reglas de reserva configurables por peluquería.
-- Registrar la venta al completar una cita. Las tablas `ventas`, `venta_items` y `comisiones` existen pero la app no las usa; por eso los ingresos aparecen en $0. Es un trabajo aparte de este plan.
+- Registrar la venta al completar una cita. Las tablas `ventas`, `venta_items` y `comisiones` existen pero la app no las usa; por eso los ingresos aparecen en $0. El cierre automático no registra cobros. Es un trabajo aparte de este plan.
 
 ## 12. Pendiente de decidir o verificar
 
 1. **Reglas fijas de la etapa 1:** anticipación de 2 horas, hasta 30 días, intervalos de 15 minutos y máximo 2 solicitudes pendientes por teléfono.
 2. **Dominio propio:** lo necesitan el correo de avisos y el enlace que se comparte con los clientes.
 3. **Clave `service_role`:** solo en variables de entorno del servidor, nunca con prefijo `NEXT_PUBLIC_` ni en el repo.
+
+## 13. Clientes y cierre automático (implementado)
+
+Decidido durante el paso 1 e implementado en la rama `feature/clientes-historial`:
+
+| Archivo | Cambio |
+|---|---|
+| `app/clientes/page.tsx` | Sin "+ Nuevo cliente". Parte en "Atendidos" (por visita más reciente), con la columna "Servicio habitual". Filtros: Atendidos, Sin visitar 60+ días, Aún no atendidos, Bloqueados y Todos |
+| `app/clientes/[id]/page.tsx` | Tarjeta "Lo que suele pedir": los 3 servicios más pedidos y cada cuánto viene |
+| `app/components/ModalNuevaCita.tsx` | Opción "+ Cliente nuevo" con solo nombre y teléfono |
+| `app/components/ModalCliente.tsx` | Queda solo para editar |
+| `app/dashboard/page.tsx` | El acceso rápido "Nuevo cliente" pasa a "Clientes" |
+| `app/api/clientes/route.ts` | `?vista=atendidos` y `?vista=sin-atender`, `servicioHabitual`, y `POST` reutiliza el cliente si el teléfono ya existe |
+| `app/api/clientes/[id]/route.ts` | `serviciosFrecuentes` y `cadaCuantosDias`, a partir de las citas completadas |
+| `app/api/citas/route.ts` (POST) | Las citas del panel nacen `confirmada` |
+| `app/lib/clientes.ts` | `normalizarTelefono` (últimos 9 dígitos), `serviciosFrecuentes` y `diasEntreVisitas` |
+
+Para que la lista de atendidos se llene sola hay que ejecutar la migración 002. Sin ella, las citas solo pasan a `completada` cuando alguien las marca a mano.
 
 ## Anexo: observaciones de seguridad del esquema
 

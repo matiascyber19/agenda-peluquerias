@@ -12,6 +12,7 @@ const enlaces = [
   { href: '/servicios', label: 'Servicios' },
   { href: '/peluqueros', label: 'Peluqueros' },
   { href: '/reportes', label: 'Reportes' },
+  { href: '/configuracion', label: 'Configuración' },
 ]
 
 export default function Navbar({ peluqueria }: { peluqueria?: string }) {

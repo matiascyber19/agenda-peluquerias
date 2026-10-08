@@ -1,6 +1,6 @@
 import { createClient } from '@/app/lib/supabase/server'
 import { type Embebido, uno } from '@/app/lib/supabase/embebido'
-import { buscarCruce, describirCruce, FILTRO_CITAS_DE_AGENDA, validarParticipantes } from '@/app/lib/citas'
+import { buscarCruce, describirCruce, esErrorDeCruce, FILTRO_CITAS_DE_AGENDA, MENSAJE_CRUCE, validarParticipantes } from '@/app/lib/citas'
 import { esFecha, inicioDelDiaEnChile, sumarDias } from '@/app/lib/fechas'
 import type { Cobro } from '@/app/lib/cobros'
 import { NextResponse } from 'next/server'
@@ -290,6 +290,9 @@ export async function POST(request: Request) {
       .single()
 
     if (citaError) {
+      if (esErrorDeCruce(citaError)) {
+        return NextResponse.json({ error: MENSAJE_CRUCE }, { status: 409 })
+      }
       return NextResponse.json({ error: citaError.message }, { status: 500 })
     }
 

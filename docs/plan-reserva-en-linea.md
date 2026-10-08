@@ -226,7 +226,7 @@ Cada paso es un PR a `dev` que se puede desplegar sin romper lo anterior.
 - WhatsApp automático (API de Meta) y chat.
 - Acceso propio para peluqueros y recepcionistas. `usuarios.rol` ya los admite, pero las políticas RLS tienen que distinguir roles.
 - Reglas de reserva configurables por peluquería.
-- Registrar la venta al completar una cita. Las tablas `ventas`, `venta_items` y `comisiones` existen pero la app no las usa; por eso los ingresos aparecen en $0. El cierre automático no registra cobros. Es un trabajo aparte de este plan.
+- ✅ Registrar el cobro de una cita: desde el detalle de la cita se elige el medio de pago y el total, y se guarda en `ventas` y `venta_items`. Los ingresos cuentan en la fecha del cobro. El cierre automático no cobra: una cita completada sin cobro no suma ingresos. Las `comisiones` siguen sin usarse.
 
 ## 12. Pendiente de decidir o verificar
 
@@ -259,4 +259,5 @@ La migración `004_permisos.sql` (✅ ejecutada el 8 de octubre) resuelve lo que
 - ✅ **Plan editable por el dueño.** Antes la política de `peluquerias` era `ALL`, así que un dueño podía cambiar su `plan` y su `fecha_vencimiento_plan`, o borrar la peluquería con borrado en cascada. Ahora solo puede editar los datos de perfil y contacto: `nombre`, `slug`, `direccion`, `comuna`, `telefono`, `email` y `logo_url`. No puede crear ni borrar peluquerías.
 - ✅ **Cuentas y roles.** Nadie puede cambiar su propio `rol`, ni agregar o borrar cuentas. La tabla `usuarios` es de solo lectura para la app, y las cuentas se crean con `registrar_peluqueria()`.
 - ✅ **Referencias a otra peluquería.** Los ids de servicios y peluqueros se ven en la página pública de reservas. Con ellos, una peluquería podía asociar el servicio de otra a sus citas, y esa otra ya no podía borrarlo. Lo mismo con los peluqueros de otra peluquería en sus cierres. Ahora `cita_servicios` y `bloqueos` exigen que todo sea de la misma peluquería.
+- ✅ **Citas cruzadas y cobros dobles.** La migración `005_proteccion_cruces_y_cobros.sql` agrega una restricción EXCLUDE que impide en la base dos citas cruzadas del mismo peluquero, aunque se guarden al mismo tiempo, y un índice único que permite un solo cobro por cita.
 - **Pendiente: permisos por rol.** Hoy todas las cuentas son `dueño`. Cuando existan cuentas de `peluquero` o `recepcionista` (etapa 2, §11), las políticas tendrán que distinguir qué puede hacer cada rol.

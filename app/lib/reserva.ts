@@ -41,6 +41,10 @@ export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
  * cliente; cualquier otro error se oculta tras un mensaje genérico.
  */
 export function errorDeReserva(error: { code?: string; message: string }) {
+  // 23P01: la base detectó que la hora se cruza con otra cita (migración 005)
+  if (error.code === '23P01') {
+    return { mensaje: 'Esa hora ya no está disponible. Elige otra.', status: 409 }
+  }
   if (error.code === 'P0001') {
     const horaTomada = error.message.startsWith('Esa hora ya no está disponible')
     return { mensaje: error.message, status: horaTomada ? 409 : 400 }

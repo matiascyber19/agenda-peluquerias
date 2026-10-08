@@ -70,7 +70,10 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">Contraseña</label>
+              <div className="flex items-baseline justify-between mb-1.5">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">Contraseña</label>
+                <Link href="/recuperar" className="text-xs text-slate-600 hover:underline">¿Olvidaste tu contraseña?</Link>
+              </div>
               <input
                 id="password"
                 autoComplete="current-password"

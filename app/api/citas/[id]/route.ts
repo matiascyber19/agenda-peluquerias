@@ -1,5 +1,5 @@
 import { createClient } from '@/app/lib/supabase/server'
-import { buscarCruce, describirCruce, ocupaHorario, validarParticipantes } from '@/app/lib/citas'
+import { buscarCruce, describirCruce, esErrorDeCruce, MENSAJE_CRUCE, ocupaHorario, validarParticipantes } from '@/app/lib/citas'
 import { ESTADOS_SIN_COBRO } from '@/app/lib/cobros'
 import { NextResponse } from 'next/server'
 
@@ -159,6 +159,9 @@ export async function PATCH(
       .single()
 
     if (error) {
+      if (esErrorDeCruce(error)) {
+        return NextResponse.json({ error: MENSAJE_CRUCE }, { status: 409 })
+      }
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 

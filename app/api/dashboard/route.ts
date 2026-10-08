@@ -105,7 +105,7 @@ export async function GET() {
     },
     citas: citas.map(c => ({
       id: c.id,
-      hora: new Date(c.inicio).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+      hora: new Date(c.inicio).toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour: '2-digit', minute: '2-digit' }),
       cliente: uno(c.clientes)?.nombre || 'Sin cliente',
       peluquero: uno(c.peluqueros)?.nombre || 'Sin asignar',
       colorPeluquero: uno(c.peluqueros)?.color_agenda,
@@ -116,7 +116,7 @@ export async function GET() {
       estado: c.estado
     })),
     proximaCita: proximaCita ? {
-      hora: new Date(proximaCita.inicio).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+      hora: new Date(proximaCita.inicio).toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour: '2-digit', minute: '2-digit' }),
       cliente: uno(proximaCita.clientes)?.nombre,
       peluquero: uno(proximaCita.peluqueros)?.nombre,
       servicio: (proximaCita.cita_servicios || [])

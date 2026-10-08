@@ -78,6 +78,17 @@ export async function buscarCruce(
   return { cruce: data?.[0] ?? null, error }
 }
 
+/**
+ * La base rechazó la cita por cruzarse con otra del mismo peluquero
+ * (restricción citas_sin_cruces, migración 005). Pasa cuando dos personas
+ * guardan al mismo tiempo y la revisión previa de la app no alcanzó a verlo.
+ */
+export function esErrorDeCruce(error: { code?: string } | null) {
+  return error?.code === '23P01'
+}
+
+export const MENSAJE_CRUCE = 'El peluquero ya tiene otra cita en ese horario'
+
 export function describirCruce(cruce: { inicio: string; fin: string }) {
   const hora = (iso: string) =>
     new Date(iso).toLocaleTimeString('es-CL', {

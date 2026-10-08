@@ -14,12 +14,18 @@ interface Reporte {
     totalVentas: number
     totalGastos: number
     totalCitas: number
+    citasConResultado: number
     porcentajeNoShow: number
   }
   ventas: { ingresosPorMedioPago: Record<string, number> }
   gastos: { gastosPorCategoria: Record<string, number> }
   citas: { porEstado: Record<string, number> }
   servicios: { masRealizados: { id: string; nombre: string; cantidad: number }[] }
+}
+
+/** "1 venta", "3 ventas" */
+function contar(n: number, singular: string, plural: string) {
+  return `${n} ${n === 1 ? singular : plural}`
 }
 
 function formatearCLP(monto: number) {
@@ -161,12 +167,12 @@ export default function ReportesPage() {
               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Ingresos</p>
                 <p className="mt-1 text-2xl font-bold text-gray-900">{formatearCLP(reporte.resumen.ingresosTotales)}</p>
-                <p className="mt-1 text-xs text-gray-400">{reporte.resumen.totalVentas} ventas</p>
+                <p className="mt-1 text-xs text-gray-400">{contar(reporte.resumen.totalVentas, 'venta', 'ventas')}</p>
               </div>
               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Gastos</p>
                 <p className="mt-1 text-2xl font-bold text-gray-900">{formatearCLP(reporte.resumen.gastosTotales)}</p>
-                <p className="mt-1 text-xs text-gray-400">{reporte.resumen.totalGastos} registros</p>
+                <p className="mt-1 text-xs text-gray-400">{contar(reporte.resumen.totalGastos, 'registro', 'registros')}</p>
               </div>
               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Balance</p>
@@ -177,7 +183,10 @@ export default function ReportesPage() {
               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500">No-show</p>
                 <p className="mt-1 text-2xl font-bold text-red-500">{reporte.resumen.porcentajeNoShow}%</p>
-                <p className="mt-1 text-xs text-gray-400">de {reporte.resumen.totalCitas} citas</p>
+                <p className="mt-1 text-xs text-gray-400">
+                  {reporte.citas.porEstado.no_show ?? 0} de{' '}
+                  {contar(reporte.resumen.citasConResultado, 'cita atendida o perdida', 'citas atendidas o perdidas')}
+                </p>
               </div>
             </div>
 

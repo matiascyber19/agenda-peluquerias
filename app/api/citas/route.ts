@@ -1,6 +1,8 @@
 import { createClient } from '@/app/lib/supabase/server'
 import { type Embebido, uno } from '@/app/lib/supabase/embebido'
-import { buscarCruce, describirCruce, FILTRO_CITAS_DE_AGENDA, validarParticipantes } from '@/app/lib/citas'
+import { buscarCruce, describirCruce, esErrorDeCruce, FILTRO_CITAS_DE_AGENDA, MENSAJE_CRUCE, validarParticipantes } from '@/app/lib/citas'
+import { esFecha, inicioDelDiaEnChile, sumarDias } from '@/app/lib/fechas'
+import type { Cobro } from '@/app/lib/cobros'
 import { NextResponse } from 'next/server'
 
 interface ServicioCatalogo {
@@ -27,16 +29,17 @@ interface CitaRow {
         servicios: Embebido<{ nombre: string }>
       }[]
     | null
+  ventas: Cobro[] | null
 }
 
 // ============================================
 // GET /api/citas
 // Lista citas con filtros opcionales:
-//   ?fecha=2026-06-08        (día completo)
+//   ?fecha=2026-06-08        (día completo en hora de Chile)
 //   ?peluquero_id=uuid       (filtrar por peluquero)
 //   ?estado=pendiente        (filtrar por estado)
-//   ?desde=2026-06-01&hasta=2026-06-30  (rango; acepta ISO completo)
-// Devuelve { citas: [{ id, inicio, fin, estado, notas, cliente, peluquero, servicios }] }
+//   ?desde=2026-06-01&hasta=2026-06-30  (rango de días de Chile; acepta ISO completo)
+// Devuelve { citas: [{ id, inicio, fin, estado, notas, cliente, peluquero, servicios, cobro }] }
 // ============================================
 export async function GET(request: Request) {
   const supabase = await createClient()
@@ -71,24 +74,34 @@ export async function GET(request: Request) {
         precio_congelado_clp,
         duracion_congelada_min,
         servicios ( id, nombre )
-      )
+      ),
+      ventas ( id, total_clp, medio_pago, fecha )
     `)
     .order('inicio', { ascending: true })
 
-  // 4. Filtros opcionales
+  // 4. Filtros opcionales. Las fechas sin hora son días de Chile: el servidor
+  // corre en UTC, así que un día UTC estaría corrido 3 o 4 horas.
+  for (const valor of [fecha, desde, hasta]) {
+    if (valor && !valor.includes('T') && !esFecha(valor)) {
+      return NextResponse.json({ error: 'Las fechas deben ser AAAA-MM-DD válidas' }, { status: 400 })
+    }
+  }
+
   if (fecha) {
     query = query
-      .gte('inicio', `${fecha}T00:00:00`)
-      .lte('inicio', `${fecha}T23:59:59`)
+      .gte('inicio', inicioDelDiaEnChile(fecha).toISOString())
+      .lt('inicio', inicioDelDiaEnChile(sumarDias(fecha, 1)).toISOString())
   }
 
   // Aceptan tanto YYYY-MM-DD como un instante ISO completo (2026-06-08T12:00:00.000Z)
   if (desde) {
-    query = query.gte('inicio', desde.includes('T') ? desde : `${desde}T00:00:00`)
+    query = query.gte('inicio', desde.includes('T') ? desde : inicioDelDiaEnChile(desde).toISOString())
   }
 
   if (hasta) {
-    query = query.lte('inicio', hasta.includes('T') ? hasta : `${hasta}T23:59:59`)
+    query = hasta.includes('T')
+      ? query.lte('inicio', hasta)
+      : query.lt('inicio', inicioDelDiaEnChile(sumarDias(hasta, 1)).toISOString())
   }
 
   if (peluquero_id) {
@@ -135,6 +148,7 @@ export async function GET(request: Request) {
         duracion_minutos: cs.duracion_congelada_min,
         precio_clp: cs.precio_congelado_clp,
       })),
+      cobro: cita.ventas?.[0] ?? null,
     }
   })
 
@@ -276,6 +290,9 @@ export async function POST(request: Request) {
       .single()
 
     if (citaError) {
+      if (esErrorDeCruce(citaError)) {
+        return NextResponse.json({ error: MENSAJE_CRUCE }, { status: 409 })
+      }
       return NextResponse.json({ error: citaError.message }, { status: 500 })
     }
 

@@ -1,9 +1,8 @@
 'use client'
 
-import { use, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '../components/Navbar'
-import ModalCliente from '../components/ModalCliente'
 
 interface Cliente {
   id: string
@@ -16,15 +15,22 @@ interface Cliente {
   bloqueado: boolean
   ultimaVisita: string | null
   servicios: number
+  servicioHabitual: { nombre: string; veces: number } | null
   gasto: number
 }
 
+// Los clientes ya no se crean aquí: llegan solos al reservar en línea o al
+// crear una cita. La lista parte mostrando a los que ya se atendieron.
 const FILTROS = [
-  { valor: 'todos', label: 'Todos' },
-  { valor: 'activos', label: 'Activos' },
+  { valor: 'atendidos', label: 'Atendidos' },
   { valor: 'sin-visitar', label: 'Sin visitar 60+ días' },
+  { valor: 'sin-atender', label: 'Aún no atendidos' },
   { valor: 'bloqueados', label: 'Bloqueados' },
+  { valor: 'todos', label: 'Todos' },
 ]
+
+// Cuántos clientes se leen como máximo para armar la lista (tope de la API).
+const LIMITE_CLIENTES = 500
 
 function formatearCLP(monto: number) {
   return monto.toLocaleString('es-CL', {
@@ -44,24 +50,11 @@ function formatearFecha(iso: string | null) {
   })
 }
 
-export default function ClientesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ nuevo?: string | string[] }>
-}) {
+export default function ClientesPage() {
   const router = useRouter()
-  // El dashboard enlaza a /clientes?nuevo=1 para abrir el modal directamente.
-  const { nuevo } = use(searchParams)
 
   const [busqueda, setBusqueda] = useState('')
-  const [filtro, setFiltro] = useState('todos')
-  const [modalAbierto, setModalAbierto] = useState(nuevo === '1')
-  const [recarga, setRecarga] = useState(0)
-
-  // Quita el parámetro para que recargar la página no vuelva a abrir el modal.
-  useEffect(() => {
-    if (nuevo === '1') window.history.replaceState(null, '', '/clientes')
-  }, [nuevo])
+  const [filtro, setFiltro] = useState('atendidos')
 
   // debounce de la búsqueda: no dispara un fetch por cada tecla
   const [busquedaAplicada, setBusquedaAplicada] = useState('')
@@ -70,10 +63,10 @@ export default function ClientesPage({
     return () => clearTimeout(t)
   }, [busqueda])
 
-  // La respuesta recuerda qué búsqueda (y qué recarga) pidió: mientras no
-  // coincida con la actual, la lista está cargando. Así el efecto no
-  // necesita hacer setLoading(true) de forma síncrona.
-  const consulta = `${busquedaAplicada}|${filtro}|${recarga}`
+  // La respuesta recuerda qué búsqueda pidió: mientras no coincida con la
+  // actual, la lista está cargando. Así el efecto no necesita hacer
+  // setLoading(true) de forma síncrona.
+  const consulta = `${busquedaAplicada}|${filtro}`
   const [respuesta, setRespuesta] = useState<{
     consulta: string
     clientes: Cliente[]
@@ -83,14 +76,15 @@ export default function ClientesPage({
   const error = loading ? '' : respuesta.error
   const clientes = respuesta.clientes
 
-  // Búsqueda en servidor: la API soporta ?buscar= y ?bloqueado=.
+  // Búsqueda en servidor: la API soporta ?buscar=, ?bloqueado= y ?vista=.
   useEffect(() => {
     const controller = new AbortController()
 
-    const params = new URLSearchParams()
+    const params = new URLSearchParams({ limit: String(LIMITE_CLIENTES) })
     if (busquedaAplicada) params.set('buscar', busquedaAplicada)
+    if (filtro === 'atendidos' || filtro === 'sin-visitar') params.set('vista', 'atendidos')
+    if (filtro === 'sin-atender') params.set('vista', 'sin-atender')
     if (filtro === 'bloqueados') params.set('bloqueado', 'true')
-    if (filtro === 'activos') params.set('bloqueado', 'false')
 
     fetch(`/api/clientes?${params.toString()}`, { signal: controller.signal })
       .then(async (res) => {
@@ -107,17 +101,17 @@ export default function ClientesPage({
     return () => controller.abort()
   }, [consulta, busquedaAplicada, filtro])
 
-  // "Sin visitar 60+ días" no existe como filtro en la API: se resuelve en cliente.
+  // "Sin visitar 60+ días" no existe como filtro en la API: se resuelve en
+  // cliente sobre los atendidos.
   const clientesFiltrados = useMemo(() => {
     if (filtro !== 'sin-visitar') return clientes
 
     const haceSesentaDias = new Date()
     haceSesentaDias.setDate(haceSesentaDias.getDate() - 60)
 
-    return clientes.filter((cliente) => {
-      if (!cliente.ultimaVisita) return true
-      return new Date(cliente.ultimaVisita) < haceSesentaDias
-    })
+    return clientes.filter(
+      (cliente) => cliente.ultimaVisita && new Date(cliente.ultimaVisita) < haceSesentaDias
+    )
   }, [clientes, filtro])
 
   return (
@@ -127,23 +121,18 @@ export default function ClientesPage({
       <div className="max-w-6xl mx-auto px-6 py-8">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
-            <p className="text-gray-500 text-sm mt-1">
-              {loading
-                ? 'Cargando...'
-                : error
-                ? '—'
-                : `${clientesFiltrados.length} ${clientesFiltrados.length === 1 ? 'cliente' : 'clientes'}`}
-            </p>
-          </div>
-          <button
-            onClick={() => setModalAbierto(true)}
-            className="px-4 py-2 text-sm bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium"
-          >
-            + Nuevo cliente
-          </button>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            {loading
+              ? 'Cargando...'
+              : error
+              ? '—'
+              : `${clientesFiltrados.length} ${clientesFiltrados.length === 1 ? 'cliente' : 'clientes'}`}
+          </p>
+          <p className="text-gray-400 text-xs mt-1">
+            Se agregan solos al reservar en línea o al crear una cita
+          </p>
         </div>
 
         {/* Buscador y filtros */}
@@ -177,9 +166,11 @@ export default function ClientesPage({
             <p className="text-sm text-gray-400 py-12 text-center">Cargando clientes...</p>
           ) : clientesFiltrados.length === 0 ? (
             <p className="text-sm text-gray-400 py-12 text-center">
-              {busquedaAplicada || filtro !== 'todos'
+              {busquedaAplicada
                 ? 'Ningún cliente coincide con la búsqueda'
-                : 'Todavía no tienes clientes registrados'}
+                : filtro === 'atendidos'
+                ? 'Todavía no hay clientes atendidos: aparecen aquí cuando completas su primera cita'
+                : 'No hay clientes en esta categoría'}
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -189,6 +180,7 @@ export default function ClientesPage({
                     <th className="text-left px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Cliente</th>
                     <th className="text-left px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Teléfono</th>
                     <th className="text-left px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Última visita</th>
+                    <th className="text-left px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Servicio habitual</th>
                     <th className="text-left px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Servicios</th>
                     <th className="text-left px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Total gastado</th>
                     <th className="text-left px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Estado</th>
@@ -211,6 +203,11 @@ export default function ClientesPage({
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">{cliente.telefono ?? '—'}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{formatearFecha(cliente.ultimaVisita)}</td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {cliente.servicioHabitual
+                          ? `${cliente.servicioHabitual.nombre} (${cliente.servicioHabitual.veces}×)`
+                          : '—'}
+                      </td>
                       <td className="px-6 py-4 text-sm text-gray-500">{cliente.servicios}</td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-800">{formatearCLP(cliente.gasto)}</td>
                       <td className="px-6 py-4">
@@ -237,12 +234,6 @@ export default function ClientesPage({
         </div>
 
       </div>
-
-      <ModalCliente
-        abierto={modalAbierto}
-        onCerrar={() => setModalAbierto(false)}
-        onGuardado={() => setRecarga((n) => n + 1)}
-      />
     </div>
   )
 }

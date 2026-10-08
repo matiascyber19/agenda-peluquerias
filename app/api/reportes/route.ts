@@ -1,5 +1,6 @@
 import { createClient } from "@/app/lib/supabase/server";
 import { uno } from "@/app/lib/supabase/embebido";
+import { FILTRO_CITAS_DE_AGENDA } from "@/app/lib/citas";
 import { NextResponse } from "next/server";
 
 //obtener datos para los reportes
@@ -126,6 +127,7 @@ export async function GET(request: Request){
             .select('id,estado,inicio,cita_servicios(servicio_id,servicios(id,nombre))')
             .gte('inicio',fechaDesde.toISOString())
             .lte('inicio',fechaHasta.toISOString())
+            .or(FILTRO_CITAS_DE_AGENDA) //las solicitudes en línea sin confirmar no cuentan
         //detener reporte si falla consulta de citas
         if(citasError){
             return NextResponse.json(

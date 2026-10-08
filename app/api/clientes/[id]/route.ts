@@ -1,4 +1,6 @@
 import { createClient } from '@/app/lib/supabase/server'
+import { FILTRO_CITAS_DE_AGENDA } from '@/app/lib/citas'
+import { diasEntreVisitas, serviciosFrecuentes } from '@/app/lib/clientes'
 import { NextResponse } from 'next/server'
 
 // ============================================
@@ -125,8 +127,10 @@ export async function GET(
     const { data: citasEstadisticas, error: citasEstadisticasError } =
       await supabase
         .from('citas')
-        .select('inicio, estado')
+        .select('inicio, estado, cita_servicios(servicios(nombre))')
         .eq('cliente_id', id)
+        // Las solicitudes en línea sin confirmar o rechazadas no son citas del cliente.
+        .or(FILTRO_CITAS_DE_AGENDA)
 
     if (citasEstadisticasError) {
       return NextResponse.json(
@@ -185,6 +189,10 @@ export async function GET(
 
     const ultimaVisita = visitasCompletadas[0]?.inicio || null
 
+    // Lo que suele pedir y cada cuánto viene, según sus visitas completadas.
+    const frecuentes = serviciosFrecuentes(visitasCompletadas, 3)
+    const cadaCuantosDias = diasEntreVisitas(visitasCompletadas.map((cita) => cita.inicio))
+
     const promedioGasto =
       todasLasVentas.length > 0
         ? Math.round(gastoTotal / todasLasVentas.length)
@@ -205,6 +213,8 @@ export async function GET(
         gastoTotal,
         promedioGasto,
         ultimaVisita,
+        serviciosFrecuentes: frecuentes,
+        cadaCuantosDias,
       },
     })
   } catch (error) {

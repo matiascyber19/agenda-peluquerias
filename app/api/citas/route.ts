@@ -1,6 +1,6 @@
 import { createClient } from '@/app/lib/supabase/server'
 import { type Embebido, uno } from '@/app/lib/supabase/embebido'
-import { buscarCruce, describirCruce, validarParticipantes } from '@/app/lib/citas'
+import { buscarCruce, describirCruce, FILTRO_CITAS_DE_AGENDA, validarParticipantes } from '@/app/lib/citas'
 import { NextResponse } from 'next/server'
 
 interface ServicioCatalogo {
@@ -17,7 +17,8 @@ interface CitaRow {
   fin: string | null
   estado: string
   notas: string | null
-  clientes: Embebido<{ nombre: string; telefono: string | null }>
+  creado_en: string | null
+  clientes: Embebido<{ id: string; nombre: string; telefono: string | null }>
   peluqueros: Embebido<{ id: string; nombre: string; color_agenda: string | null }>
   cita_servicios:
     | {
@@ -63,6 +64,7 @@ export async function GET(request: Request) {
       fin,
       estado,
       notas,
+      creado_en,
       clientes ( id, nombre, telefono ),
       peluqueros ( id, nombre, color_agenda ),
       cita_servicios (
@@ -93,8 +95,12 @@ export async function GET(request: Request) {
     query = query.eq('peluquero_id', peluquero_id)
   }
 
+  // Sin un estado explícito se devuelven solo las citas de la agenda: las
+  // solicitudes en línea se consultan con ?estado=solicitada.
   if (estado) {
     query = query.eq('estado', estado)
+  } else {
+    query = query.or(FILTRO_CITAS_DE_AGENDA)
   }
 
   const { data, error } = await query
@@ -113,8 +119,9 @@ export async function GET(request: Request) {
       fin: cita.fin,
       estado: cita.estado,
       notas: cita.notas,
+      creado_en: cita.creado_en,
       cliente: cliente
-        ? { nombre: cliente.nombre, telefono: cliente.telefono }
+        ? { id: cliente.id, nombre: cliente.nombre, telefono: cliente.telefono }
         : null,
       peluquero: peluquero
         ? {
@@ -136,7 +143,9 @@ export async function GET(request: Request) {
 
 // ============================================
 // POST /api/citas
-// Crea una cita nueva
+// Crea una cita desde el panel. Nace 'confirmada': la agenda la crea la propia
+// peluquería, y una cita confirmada pasa sola a 'completada' una hora después
+// de terminar (supabase/migraciones/002_completar_citas_automaticamente.sql).
 // Body esperado:
 // {
 //   cliente_id: "uuid",
@@ -260,7 +269,7 @@ export async function POST(request: Request) {
         peluquero_id,
         inicio: inicioIso,
         fin,
-        estado: 'pendiente',
+        estado: 'confirmada',
         notas: notas || null,
       })
       .select()

@@ -1,6 +1,7 @@
 import { createClient } from "@/app/lib/supabase/server";
 import { uno } from "@/app/lib/supabase/embebido";
 import { FILTRO_CITAS_DE_AGENDA } from "@/app/lib/citas";
+import { esFecha, inicioDelDiaEnChile, sumarDias } from "@/app/lib/fechas";
 import { NextResponse } from "next/server";
 
 //obtener datos para los reportes
@@ -40,29 +41,33 @@ export async function GET(request: Request){
                 {status:400}
             )
         }
-        //convertir fechas para comprobar existencia
-        const fechaDesde = new Date(`${desde}T00:00:00`)
-        const fechaHasta = new Date(`${hasta}T23:59:59.999`)
-        if(Number.isNaN(fechaDesde.getTime()) || Number.isNaN(fechaHasta.getTime())){
+        //comprobar que las fechas existan (ej: 2026-02-30 no existe)
+        if(!esFecha(desde) || !esFecha(hasta)){
             return NextResponse.json(
                 {error:'Una de las fechas ingresadas no es válida'},
                 {status:400}
             )
         }
         //evitar rango donde fecha inicial sea posterior a fecha final
-        if(fechaDesde>fechaHasta){
+        //(con el formato AÑO-MES-DIA basta comparar el texto)
+        if(desde>hasta){
             return NextResponse.json(
                 {error:'La fecha desde no puede ser posterior a la fecha hasta'},
                 {status:400}
             )
         }
 
+        //los días del período son los de Chile, no los del servidor (que corre en UTC):
+        //el período va desde la medianoche en Chile del primer día hasta la del día siguiente al último
+        const inicioPeriodo = inicioDelDiaEnChile(desde).toISOString()
+        const finPeriodo = inicioDelDiaEnChile(sumarDias(hasta, 1)).toISOString()
+
         //consultar ventas realizadas dentro del rango de fechas
         const {data: ventas, error: ventasError} = await supabase
             .from('ventas') //desde tabla ventas
             .select('id,total_clp,medio_pago,fecha') //seleccionamos los datos necesarios pal reporte
-            .gte('fecha', fechaDesde.toISOString()) //de fecha mayor o igual al inicio del periodo
-            .lte('fecha', fechaHasta.toISOString()) //y de fecha menor o igual al final del periodo
+            .gte('fecha', inicioPeriodo) //de fecha mayor o igual al inicio del periodo
+            .lt('fecha', finPeriodo) //y anterior al final del periodo
         //detener reporte si falla consulta a ventas
         if(ventasError){
             return NextResponse.json(
@@ -94,8 +99,8 @@ export async function GET(request: Request){
         const{data:gastos, error:gastosError} = await supabase
             .from('gastos')
             .select('id,descripcion,categoria,monto_clp,fecha')
-            .gte('fecha', desde)
-            .lte('fecha', hasta)
+            .gte('fecha', inicioPeriodo)
+            .lt('fecha', finPeriodo)
         //detener reporte si falla consulta de gastos
         if(gastosError){
             return NextResponse.json(
@@ -125,8 +130,8 @@ export async function GET(request: Request){
         const {data:citas, error:citasError} = await supabase
             .from('citas')
             .select('id,estado,inicio,cita_servicios(servicio_id,servicios(id,nombre))')
-            .gte('inicio',fechaDesde.toISOString())
-            .lte('inicio',fechaHasta.toISOString())
+            .gte('inicio',inicioPeriodo)
+            .lt('inicio',finPeriodo)
             .or(FILTRO_CITAS_DE_AGENDA) //las solicitudes en línea sin confirmar no cuentan
         //detener reporte si falla consulta de citas
         if(citasError){

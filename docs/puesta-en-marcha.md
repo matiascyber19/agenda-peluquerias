@@ -4,7 +4,7 @@ Pasos que dependen de las cuentas de Supabase y Vercel o de los datos reales de 
 
 ## Supabase (proyecto real)
 
-- [ ] **Ejecutar la migración 005** (`supabase/migraciones/005_proteccion_cruces_y_cobros.sql`) en el SQL Editor. La consulta final tiene que dar todo `true`. Con ella, la base impide citas cruzadas y cobros dobles.
+- [x] **Ejecutar la migración 005** (ejecutada el 8 de octubre) (`supabase/migraciones/005_proteccion_cruces_y_cobros.sql`) en el SQL Editor. La consulta final tiene que dar todo `true`. Con ella, la base impide citas cruzadas y cobros dobles.
 - [ ] **Authentication → URL Configuration.** Es necesario para recuperar la contraseña.
   - **Site URL:** `https://agenda-peluquerias-nine.vercel.app`
   - **Redirect URLs:** `https://agenda-peluquerias-nine.vercel.app/auth/confirmar` y `http://localhost:3000/auth/confirmar`

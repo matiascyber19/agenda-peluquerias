@@ -166,7 +166,8 @@ Con "sin preferencia", la hora está libre si lo está para **algún** peluquero
 | `GET`, `PUT /api/horarios` | Con sesión | Lee y reemplaza las franjas de cada peluquero |
 | `GET`, `POST /api/bloqueos` y `DELETE /api/bloqueos/[id]` | Con sesión | Días cerrados y vacaciones |
 | `app/lib/avisos.ts` | Solo servidor | Envía el correo de la nueva solicitud |
-| `app/lib/supabase/admin.ts` | Solo servidor (`import 'server-only'`) | Cliente con la clave `service_role`. **Solo** lo usa `avisos.ts` para leer `peluquerias.email`, porque el correo no debe quedar expuesto en una función pública |
+| `app/lib/supabase/admin.ts` | Solo servidor (`import 'server-only'`) | Cliente con la clave secreta de Supabase (`SUPABASE_SECRET_KEY`). **Solo** lo usa `avisos.ts` para leer `peluquerias.email`, porque el correo no debe quedar expuesto en una función pública |
+| `GET /api/solicitudes` | Con sesión | Cuántas solicitudes esperan respuesta (contador del Navbar y del dashboard) |
 
 Las solicitudes se listan con la ruta que ya existe: `GET /api/citas?estado=solicitada&desde=<ahora>`.
 
@@ -194,7 +195,12 @@ Las solicitudes se listan con la ruta que ya existe: `GET /api/citas?estado=soli
 ## 9. Aviso por correo
 
 - **Proveedor:** Resend (u otro servicio de correo transaccional).
-- **Variables de entorno**, en Vercel para Production, Preview y Development, y en `.env.local`: `RESEND_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` y el remitente.
+- **Variables de entorno**, en Vercel para Production, Preview y Development, y en `.env.local`:
+  - `RESEND_API_KEY`: la clave de Resend.
+  - `SUPABASE_SECRET_KEY`: la clave secreta de Supabase (Settings → API Keys). Nunca con prefijo `NEXT_PUBLIC_`.
+  - `AVISOS_REMITENTE` (opcional): por ejemplo `Agenda Peluquerías <avisos@tudominio.cl>`. Sin ella se usa el remitente de prueba de Resend.
+- **Sin esas claves no se envía nada**, y el resto funciona igual. El código ya está en `app/lib/avisos.ts`.
+- **Se envía después de responder al cliente** (`after()` de Next), así la reserva no espera por el correo.
 - **Contenido:** cliente, servicios, fecha, hora, peluquero y el enlace a `/solicitudes`.
 - **Si el correo falla, la solicitud igual queda creada** y aparece en "Solicitudes".
 - **Por verificar:** para enviar a cualquier dirección, Resend exige un **dominio verificado**. Sin dominio propio, solo se puede probar enviando al correo de la cuenta de Resend. Esto depende de tener un dominio.
@@ -209,7 +215,7 @@ Cada paso es un PR a `dev` que se puede desplegar sin romper lo anterior.
 3. ✅ **Reserva pública.**
    - Probar la migración 003 en local con el esquema exportado y ejecutarla en Supabase.
    - Hacer las rutas públicas y la página `/reservar/[slug]`.
-4. **Solicitudes y avisos.** La página `/solicitudes`, el contador del Navbar, la tarjeta del dashboard y el correo.
+4. ✅ **Solicitudes y avisos.** La página `/solicitudes`, el contador del Navbar, la tarjeta del dashboard y el correo. El correo queda programado y se activa al configurar las claves del §9.
 5. **Prueba completa** en el preview de Vercel con una peluquería de prueba. Después, `dev` → `main`.
 
 ## 11. Fuera de alcance (etapa 2)
@@ -226,7 +232,7 @@ Cada paso es un PR a `dev` que se puede desplegar sin romper lo anterior.
 
 1. **Reglas fijas de la etapa 1:** anticipación de 2 horas, hasta 30 días, intervalos de 15 minutos y máximo 2 solicitudes pendientes por teléfono.
 2. **Dominio propio:** lo necesitan el correo de avisos y el enlace que se comparte con los clientes.
-3. **Clave `service_role`:** solo en variables de entorno del servidor, nunca con prefijo `NEXT_PUBLIC_` ni en el repo.
+3. **Clave secreta de Supabase (`SUPABASE_SECRET_KEY`):** solo en variables de entorno del servidor, nunca con prefijo `NEXT_PUBLIC_` ni en el repo.
 
 ## 13. Clientes y cierre automático (implementado)
 

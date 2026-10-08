@@ -1,6 +1,7 @@
 import { createClient } from '@/app/lib/supabase/server'
 import { errorDeReserva, UUID } from '@/app/lib/reserva'
-import { NextResponse } from 'next/server'
+import { avisarNuevaSolicitud } from '@/app/lib/avisos'
+import { after, NextResponse } from 'next/server'
 
 // Rutas públicas (sin sesión): todo pasa por las funciones de la migración
 // 003, que validan y exponen solo lo necesario para reservar.
@@ -70,6 +71,11 @@ export async function POST(
       const { mensaje, status } = errorDeReserva(error)
       return NextResponse.json({ error: mensaje }, { status })
     }
+
+    // El correo al encargado se envía después de responder: el cliente no
+    // espera por él, y si falla la solicitud igual queda en "Solicitudes".
+    const urlBase = new URL(request.url).origin
+    after(() => avisarNuevaSolicitud(data.cita_id, urlBase))
 
     return NextResponse.json({ success: true, reserva: data })
   } catch (error) {

@@ -4,10 +4,12 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useSolicitudesPendientes } from '../lib/useSolicitudesPendientes'
 
 const enlaces = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/agenda', label: 'Agenda' },
+  { href: '/solicitudes', label: 'Solicitudes' },
   { href: '/clientes', label: 'Clientes' },
   { href: '/servicios', label: 'Servicios' },
   { href: '/peluqueros', label: 'Peluqueros' },
@@ -19,6 +21,7 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
   const pathname = usePathname()
   const [nombreApi, setNombreApi] = useState('')
   const [saliendo, setSaliendo] = useState(false)
+  const pendientes = useSolicitudesPendientes()
 
   // Si la página ya conoce el nombre de la peluquería lo usa;
   // si no, lo pide a /api/me (si falla, el nombre simplemente no se muestra).
@@ -61,7 +64,7 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
           <span className="font-semibold text-gray-800 hidden lg:inline">Agenda Peluquerías</span>
         </Link>
 
-        {/* Con seis enlaces la fila no cabe en pantallas angostas: se desplaza en horizontal. */}
+        {/* Con tantos enlaces la fila no cabe en pantallas angostas: se desplaza en horizontal. */}
         <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {enlaces.map((enlace) => {
             const activo = pathname === enlace.href || pathname.startsWith(`${enlace.href}/`)
@@ -70,13 +73,21 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
                 key={enlace.href}
                 href={enlace.href}
                 aria-current={activo ? 'page' : undefined}
-                className={`shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex shrink-0 items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   activo
                     ? 'bg-slate-900 text-white'
                     : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
                 {enlace.label}
+                {enlace.href === '/solicitudes' && pendientes !== null && pendientes > 0 && (
+                  <span
+                    aria-label={`${pendientes} por confirmar`}
+                    className="rounded-full bg-blue-600 px-1.5 text-xs font-semibold leading-5 text-white"
+                  >
+                    {pendientes}
+                  </span>
+                )}
               </Link>
             )
           })}

@@ -17,7 +17,8 @@ La solución es un **segundo proyecto de Supabase, solo para pruebas**. Vercel p
 3. En **Authentication → Sign In / Providers → Email**, dejar **Confirm email** igual que en producción. El registro de la app entra directo al panel, así que necesita la confirmación desactivada.
 4. En **Authentication → URL Configuration**:
    - **Site URL:** `http://localhost:3000`
-   - **Redirect URLs:** `http://localhost:3000/auth/confirmar` y `https://agenda-peluquerias-*.vercel.app/auth/confirmar`. Esta última cubre los previews.
+   - **Redirect URLs:** `http://localhost:3000/**` y `https://agenda-peluquerias-*.vercel.app/**`. La segunda cubre los previews. El `**` hace falta porque la app envía la dirección con `?next=...` y Supabase compara la URL completa.
+   - En **Emails → Templates → Reset password**, la misma plantilla que en producción: el enlace `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=recovery`.
 
 Probé esta secuencia en una base vacía (PGlite, Postgres 18): el esquema y las 5 migraciones se ejecutan sin errores, y funcionan el registro, la creación de servicios y peluqueros, la página pública, la reserva en línea, el rechazo de una hora tomada, los permisos y la tarea programada.
 

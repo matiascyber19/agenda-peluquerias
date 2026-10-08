@@ -216,7 +216,7 @@ Cada paso es un PR a `dev` que se puede desplegar sin romper lo anterior.
    - Probar la migración 003 en local con el esquema exportado y ejecutarla en Supabase.
    - Hacer las rutas públicas y la página `/reservar/[slug]`.
 4. ✅ **Solicitudes y avisos.** La página `/solicitudes`, el contador del Navbar, la tarjeta del dashboard y el correo. El correo queda programado y se activa al configurar las claves del §9.
-5. **Prueba completa** en el preview de Vercel con una peluquería de prueba. Después, `dev` → `main`.
+5. ✅ **Prueba completa** con una peluquería de prueba y `dev` → `main`. En producción desde el 8 de octubre.
 
 ## 11. Fuera de alcance (etapa 2)
 

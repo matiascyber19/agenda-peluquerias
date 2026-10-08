@@ -1,18 +1,24 @@
 // El servidor corre en UTC (Vercel), pero los días de la peluquería son los de
 // Chile: un "día cerrado" empieza a medianoche en Santiago, no en UTC.
+//
+// Chile continental está en UTC-3 (verano) o UTC-4 (invierno). Para pasar una
+// fecha y hora de Chile a un instante se prueban esos dos desfases y se elige
+// el que, visto en Chile, da exactamente esa fecha y hora. Así también se
+// cubren los días de cambio de horario.
 
 const ZONA = 'America/Santiago'
+const DESFASES_HORAS = [3, 4]
 
-/** Offset de Chile respecto a UTC, en ms, para ese instante (contempla horario de verano). */
-function offsetChile(instante: Date) {
-  const etiqueta = new Intl.DateTimeFormat('en-US', { timeZone: ZONA, timeZoneName: 'longOffset' })
-    .formatToParts(instante)
-    .find((p) => p.type === 'timeZoneName')?.value
-
-  const partes = /GMT([+-])(\d{2}):(\d{2})/.exec(etiqueta ?? '')
-  if (!partes) return 0
-  const signo = partes[1] === '-' ? -1 : 1
-  return signo * (Number(partes[2]) * 60 + Number(partes[3])) * 60_000
+/** "AAAA-MM-DD HH:MM" de ese instante en Chile. */
+function enChile(instante: Date) {
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: ZONA,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(instante)
 }
 
 /** ¿Es una fecha real con formato AAAA-MM-DD? */
@@ -29,17 +35,38 @@ export function sumarDias(fecha: string, dias: number) {
   return new Date(Date.UTC(anio, mes - 1, dia + dias)).toISOString().slice(0, 10)
 }
 
-/** Instante en que empieza ese día (AAAA-MM-DD) en Chile. */
+/** Fecha AAAA-MM-DD de ese instante en Chile. */
+export function fechaEnChile(instante: Date) {
+  return enChile(instante).slice(0, 10)
+}
+
+/**
+ * Instante de esa fecha (AAAA-MM-DD) y hora (HH:MM) en Chile. Si la hora se
+ * repite (al volver al horario de invierno) se usa la primera; si no existe
+ * (al pasar al de verano, entre las 00:00 y las 00:59) se usa la siguiente.
+ */
+export function instanteEnChile(fecha: string, hora: string) {
+  const [anio, mes, dia] = fecha.split('-').map(Number)
+  const [h, m] = hora.split(':').map(Number)
+  const comoUtc = Date.UTC(anio, mes - 1, dia, h, m)
+  for (const desfase of DESFASES_HORAS) {
+    const candidato = new Date(comoUtc + desfase * 3_600_000)
+    if (enChile(candidato) === `${fecha} ${hora}`) return candidato
+  }
+  return new Date(comoUtc + DESFASES_HORAS[DESFASES_HORAS.length - 1] * 3_600_000)
+}
+
+/**
+ * Instante en que empieza ese día (AAAA-MM-DD) en Chile: el primero de los
+ * desfases posibles que ya cae en esa fecha. El día del cambio a horario de
+ * verano la medianoche no existe y el día empieza a la 01:00.
+ */
 export function inicioDelDiaEnChile(fecha: string) {
   const [anio, mes, dia] = fecha.split('-').map(Number)
   const medianocheUtc = Date.UTC(anio, mes - 1, dia)
-  // Dos pasadas: el offset correcto es el de la medianoche chilena, que en los
-  // días de cambio de horario puede diferir del de la medianoche UTC.
-  const aproximado = medianocheUtc - offsetChile(new Date(medianocheUtc))
-  return new Date(medianocheUtc - offsetChile(new Date(aproximado)))
-}
-
-/** Fecha AAAA-MM-DD de ese instante en Chile. */
-export function fechaEnChile(instante: Date) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: ZONA }).format(instante)
+  for (const desfase of DESFASES_HORAS) {
+    const candidato = new Date(medianocheUtc + desfase * 3_600_000)
+    if (fechaEnChile(candidato) === fecha) return candidato
+  }
+  return new Date(medianocheUtc + DESFASES_HORAS[DESFASES_HORAS.length - 1] * 3_600_000)
 }

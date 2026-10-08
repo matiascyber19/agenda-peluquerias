@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import Navbar from "../components/Navbar"
+import { useSolicitudesPendientes } from "../lib/useSolicitudesPendientes"
 
 interface DashboardData {
   usuario: {
@@ -50,6 +51,7 @@ export default function DashboardPage() {
   // Momento en que llegaron los datos: Date.now() no puede leerse durante el render.
   const [cargadoEn, setCargadoEn] = useState(0)
   const [loading, setLoading] = useState(true)
+  const solicitudesPendientes = useSolicitudesPendientes()
 
   useEffect(() => {
     fetch("/api/dashboard")
@@ -193,8 +195,28 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Accesos rápidos + Próxima cita */}
+          {/* Solicitudes + Accesos rápidos + Próxima cita */}
           <div className="space-y-4">
+            {/* Reservas en línea que esperan respuesta; se actualiza sola cada minuto. */}
+            <Link
+              href="/solicitudes"
+              className={`block rounded-2xl border p-6 shadow-sm transition-colors ${
+                solicitudesPendientes
+                  ? "border-blue-200 bg-blue-50 hover:bg-blue-100"
+                  : "border-gray-200 bg-white hover:bg-gray-50"
+              }`}
+            >
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                Solicitudes por confirmar
+              </p>
+              <p className={`mt-1 text-3xl font-bold ${solicitudesPendientes ? "text-blue-700" : "text-gray-900"}`}>
+                {solicitudesPendientes ?? "—"}
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                {solicitudesPendientes ? "Ver y responder →" : "Nada pendiente"}
+              </p>
+            </Link>
+
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
               <h2 className="font-semibold text-gray-800 mb-4">Accesos rápidos</h2>
               <div className="space-y-2">

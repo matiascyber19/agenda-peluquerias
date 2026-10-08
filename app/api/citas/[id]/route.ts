@@ -1,5 +1,6 @@
 import { createClient } from '@/app/lib/supabase/server'
 import { buscarCruce, describirCruce, ocupaHorario, validarParticipantes } from '@/app/lib/citas'
+import { ESTADOS_SIN_COBRO } from '@/app/lib/cobros'
 import { NextResponse } from 'next/server'
 
 // ============================================
@@ -75,12 +76,20 @@ export async function PATCH(
     // 5. Cita actual (RLS solo deja ver las de esta peluquería)
     const { data: actual } = await supabase
       .from('citas')
-      .select('inicio, fin, estado, peluquero_id')
+      .select('inicio, fin, estado, peluquero_id, ventas ( id )')
       .eq('id', id)
       .maybeSingle()
 
     if (!actual) {
       return NextResponse.json({ error: 'Cita no encontrada' }, { status: 404 })
+    }
+
+    // Una cita cobrada se atendió: no puede pasar a cancelada ni a no-show.
+    if (estado !== undefined && ESTADOS_SIN_COBRO.includes(estado) && (actual.ventas ?? []).length > 0) {
+      return NextResponse.json(
+        { error: 'Esta cita tiene un cobro registrado. Anula el cobro antes de cambiarla a ese estado.' },
+        { status: 409 }
+      )
     }
 
     // Transiciones de las reservas en línea
@@ -193,7 +202,16 @@ export async function DELETE(
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
     }
 
-    // 2. Cambiar estado a 'cancelada' (soft delete)
+    // 2. Una cita cobrada se atendió: no se puede cancelar sin anular el cobro.
+    const { data: cobros } = await supabase.from('ventas').select('id').eq('cita_id', id).limit(1)
+    if ((cobros ?? []).length > 0) {
+      return NextResponse.json(
+        { error: 'Esta cita tiene un cobro registrado. Anula el cobro antes de cancelarla.' },
+        { status: 409 }
+      )
+    }
+
+    // 3. Cambiar estado a 'cancelada' (soft delete)
     const { data, error } = await supabase
       .from('citas')
       .update({ estado: 'cancelada' })

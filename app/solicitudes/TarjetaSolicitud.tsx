@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { INPUT, LABEL, BOTON_CREAR, BOTON_PRIMARIO, BOTON_SECUNDARIO } from '../components/estilos'
-import { inicioDelDiaEnChile } from '../lib/fechas'
+import { instanteEnChile } from '../lib/fechas'
 import { enlaceWhatsApp } from '../lib/reserva'
 
 export interface Solicitud {
@@ -128,8 +128,7 @@ export default function TarjetaSolicitud({ solicitud, peluqueros, consultadoEn, 
   function aceptarConCambio() {
     if (!fecha || !/^\d{2}:\d{2}$/.test(hora)) return setError('Elige el día y la hora')
     if (!peluqueroId) return setError('Elige un peluquero')
-    const [h, m] = hora.split(':').map(Number)
-    const inicio = new Date(inicioDelDiaEnChile(fecha).getTime() + (h * 60 + m) * 60_000).toISOString()
+    const inicio = instanteEnChile(fecha, hora).toISOString()
 
     const cuerpo: Record<string, string> = { estado: 'confirmada', inicio }
     if (peluqueroId !== solicitud.peluquero?.id) cuerpo.peluquero_id = peluqueroId

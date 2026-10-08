@@ -17,7 +17,8 @@ interface CitaRow {
   fin: string | null
   estado: string
   notas: string | null
-  clientes: Embebido<{ nombre: string; telefono: string | null }>
+  creado_en: string | null
+  clientes: Embebido<{ id: string; nombre: string; telefono: string | null }>
   peluqueros: Embebido<{ id: string; nombre: string; color_agenda: string | null }>
   cita_servicios:
     | {
@@ -63,6 +64,7 @@ export async function GET(request: Request) {
       fin,
       estado,
       notas,
+      creado_en,
       clientes ( id, nombre, telefono ),
       peluqueros ( id, nombre, color_agenda ),
       cita_servicios (
@@ -117,8 +119,9 @@ export async function GET(request: Request) {
       fin: cita.fin,
       estado: cita.estado,
       notas: cita.notas,
+      creado_en: cita.creado_en,
       cliente: cliente
-        ? { nombre: cliente.nombre, telefono: cliente.telefono }
+        ? { id: cliente.id, nombre: cliente.nombre, telefono: cliente.telefono }
         : null,
       peluquero: peluquero
         ? {

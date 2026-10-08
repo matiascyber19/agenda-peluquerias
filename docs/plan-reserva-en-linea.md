@@ -254,7 +254,9 @@ Para que la lista de atendidos se llene sola hay que ejecutar la migración 002.
 
 ## Anexo: observaciones de seguridad del esquema
 
-No bloquean este plan, pero conviene resolverlas antes de cobrar o de dar acceso a los peluqueros:
+La migración `004_permisos.sql` resuelve lo que permitía la API de Supabase usada directamente con una sesión:
 
-- **Plan editable por el dueño:** la política de `peluquerias` es `ALL`, así que un dueño, usando su sesión directamente contra la API de Supabase, puede cambiar su `plan` y su `fecha_vencimiento_plan`, o borrar la peluquería (con borrado en cascada).
-- **Sin distinción de roles:** las políticas no distinguen roles. Cuando existan usuarios `peluquero` o `recepcionista`, podrán hacer todo lo que hace el dueño, incluido cambiar su propio `rol`.
+- ✅ **Plan editable por el dueño.** Antes la política de `peluquerias` era `ALL`, así que un dueño podía cambiar su `plan` y su `fecha_vencimiento_plan`, o borrar la peluquería con borrado en cascada. Ahora solo puede editar los datos de perfil y contacto: `nombre`, `slug`, `direccion`, `comuna`, `telefono`, `email` y `logo_url`. No puede crear ni borrar peluquerías.
+- ✅ **Cuentas y roles.** Nadie puede cambiar su propio `rol`, ni agregar o borrar cuentas. La tabla `usuarios` es de solo lectura para la app, y las cuentas se crean con `registrar_peluqueria()`.
+- ✅ **Referencias a otra peluquería.** Los ids de servicios y peluqueros se ven en la página pública de reservas. Con ellos, una peluquería podía asociar el servicio de otra a sus citas, y esa otra ya no podía borrarlo. Lo mismo con los peluqueros de otra peluquería en sus cierres. Ahora `cita_servicios` y `bloqueos` exigen que todo sea de la misma peluquería.
+- **Pendiente: permisos por rol.** Hoy todas las cuentas son `dueño`. Cuando existan cuentas de `peluquero` o `recepcionista` (etapa 2, §11), las políticas tendrán que distinguir qué puede hacer cada rol.

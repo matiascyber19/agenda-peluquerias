@@ -2,6 +2,7 @@ import { createClient } from "@/app/lib/supabase/server";
 import { uno } from "@/app/lib/supabase/embebido";
 import { FILTRO_CITAS_DE_AGENDA } from "@/app/lib/citas";
 import { esFecha, inicioDelDiaEnChile, sumarDias } from "@/app/lib/fechas";
+import { traerTodas } from "@/app/lib/supabase/paginar";
 import { NextResponse } from "next/server";
 
 //obtener datos para los reportes
@@ -63,11 +64,14 @@ export async function GET(request: Request){
         const finPeriodo = inicioDelDiaEnChile(sumarDias(hasta, 1)).toISOString()
 
         //consultar ventas realizadas dentro del rango de fechas
-        const {data: ventas, error: ventasError} = await supabase
+        //(traerTodas pide de a 1000 filas, el máximo que entrega supabase por consulta)
+        const {data: ventas, error: ventasError} = await traerTodas((primera, ultima) => supabase
             .from('ventas') //desde tabla ventas
             .select('id,total_clp,medio_pago,fecha') //seleccionamos los datos necesarios pal reporte
             .gte('fecha', inicioPeriodo) //de fecha mayor o igual al inicio del periodo
             .lt('fecha', finPeriodo) //y anterior al final del periodo
+            .order('id')
+            .range(primera, ultima))
         //detener reporte si falla consulta a ventas
         if(ventasError){
             return NextResponse.json(
@@ -96,11 +100,13 @@ export async function GET(request: Request){
         }
 
         //consultar gastos registrados dentro del rango de fechas
-        const{data:gastos, error:gastosError} = await supabase
+        const{data:gastos, error:gastosError} = await traerTodas((primera, ultima) => supabase
             .from('gastos')
             .select('id,descripcion,categoria,monto_clp,fecha')
             .gte('fecha', inicioPeriodo)
             .lt('fecha', finPeriodo)
+            .order('id')
+            .range(primera, ultima))
         //detener reporte si falla consulta de gastos
         if(gastosError){
             return NextResponse.json(
@@ -127,12 +133,14 @@ export async function GET(request: Request){
         //calcular diferencia entre ingresos y gastos
         const balance = ingresosTotales - gastosTotales
         //consultar citas dentro del rango de fechas
-        const {data:citas, error:citasError} = await supabase
+        const {data:citas, error:citasError} = await traerTodas((primera, ultima) => supabase
             .from('citas')
             .select('id,estado,inicio,cita_servicios(servicio_id,servicios(id,nombre))')
             .gte('inicio',inicioPeriodo)
             .lt('inicio',finPeriodo)
             .or(FILTRO_CITAS_DE_AGENDA) //las solicitudes en línea sin confirmar no cuentan
+            .order('id')
+            .range(primera, ultima))
         //detener reporte si falla consulta de citas
         if(citasError){
             return NextResponse.json(
@@ -158,10 +166,13 @@ export async function GET(request: Request){
             }
         }
 
-        //calcular % de clientes que no llegan a sus citas
-        const porcentajeNoShow = totalCitas > 0
+        //calcular % de clientes que no llegan a sus citas: solo cuentan las citas
+        //que ya tienen resultado (completadas o no-show). Las futuras, pendientes
+        //o canceladas todavía no dicen si el cliente llegó.
+        const citasConResultado = citasPorEstado.completada + citasPorEstado.no_show
+        const porcentajeNoShow = citasConResultado > 0
             ? Number(
-                ((citasPorEstado.no_show / totalCitas)*100).toFixed(2)
+                ((citasPorEstado.no_show / citasConResultado)*100).toFixed(2)
             ) : 0
 
         //guardar cantidad de veces que aparece cada servicio
@@ -212,6 +223,7 @@ export async function GET(request: Request){
                 totalVentas: ventas?.length || 0,
                 totalGastos: gastos?.length || 0,
                 totalCitas,
+                citasConResultado,
                 porcentajeNoShow
             },
             ventas:{

@@ -1,6 +1,7 @@
 import { createClient } from '@/app/lib/supabase/server'
 import { type Embebido, uno } from '@/app/lib/supabase/embebido'
 import { buscarCruce, describirCruce, FILTRO_CITAS_DE_AGENDA, validarParticipantes } from '@/app/lib/citas'
+import { esFecha, inicioDelDiaEnChile, sumarDias } from '@/app/lib/fechas'
 import { NextResponse } from 'next/server'
 
 interface ServicioCatalogo {
@@ -32,10 +33,10 @@ interface CitaRow {
 // ============================================
 // GET /api/citas
 // Lista citas con filtros opcionales:
-//   ?fecha=2026-06-08        (día completo)
+//   ?fecha=2026-06-08        (día completo en hora de Chile)
 //   ?peluquero_id=uuid       (filtrar por peluquero)
 //   ?estado=pendiente        (filtrar por estado)
-//   ?desde=2026-06-01&hasta=2026-06-30  (rango; acepta ISO completo)
+//   ?desde=2026-06-01&hasta=2026-06-30  (rango de días de Chile; acepta ISO completo)
 // Devuelve { citas: [{ id, inicio, fin, estado, notas, cliente, peluquero, servicios }] }
 // ============================================
 export async function GET(request: Request) {
@@ -75,20 +76,29 @@ export async function GET(request: Request) {
     `)
     .order('inicio', { ascending: true })
 
-  // 4. Filtros opcionales
+  // 4. Filtros opcionales. Las fechas sin hora son días de Chile: el servidor
+  // corre en UTC, así que un día UTC estaría corrido 3 o 4 horas.
+  for (const valor of [fecha, desde, hasta]) {
+    if (valor && !valor.includes('T') && !esFecha(valor)) {
+      return NextResponse.json({ error: 'Las fechas deben ser AAAA-MM-DD válidas' }, { status: 400 })
+    }
+  }
+
   if (fecha) {
     query = query
-      .gte('inicio', `${fecha}T00:00:00`)
-      .lte('inicio', `${fecha}T23:59:59`)
+      .gte('inicio', inicioDelDiaEnChile(fecha).toISOString())
+      .lt('inicio', inicioDelDiaEnChile(sumarDias(fecha, 1)).toISOString())
   }
 
   // Aceptan tanto YYYY-MM-DD como un instante ISO completo (2026-06-08T12:00:00.000Z)
   if (desde) {
-    query = query.gte('inicio', desde.includes('T') ? desde : `${desde}T00:00:00`)
+    query = query.gte('inicio', desde.includes('T') ? desde : inicioDelDiaEnChile(desde).toISOString())
   }
 
   if (hasta) {
-    query = query.lte('inicio', hasta.includes('T') ? hasta : `${hasta}T23:59:59`)
+    query = hasta.includes('T')
+      ? query.lte('inicio', hasta)
+      : query.lt('inicio', inicioDelDiaEnChile(sumarDias(hasta, 1)).toISOString())
   }
 
   if (peluquero_id) {

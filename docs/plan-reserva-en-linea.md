@@ -254,7 +254,7 @@ Para que la lista de atendidos se llene sola hay que ejecutar la migración 002.
 
 ## Anexo: observaciones de seguridad del esquema
 
-La migración `004_permisos.sql` resuelve lo que permitía la API de Supabase usada directamente con una sesión:
+La migración `004_permisos.sql` (✅ ejecutada el 8 de octubre) resuelve lo que permitía la API de Supabase usada directamente con una sesión:
 
 - ✅ **Plan editable por el dueño.** Antes la política de `peluquerias` era `ALL`, así que un dueño podía cambiar su `plan` y su `fecha_vencimiento_plan`, o borrar la peluquería con borrado en cascada. Ahora solo puede editar los datos de perfil y contacto: `nombre`, `slug`, `direccion`, `comuna`, `telefono`, `email` y `logo_url`. No puede crear ni borrar peluquerías.
 - ✅ **Cuentas y roles.** Nadie puede cambiar su propio `rol`, ni agregar o borrar cuentas. La tabla `usuarios` es de solo lectura para la app, y las cuentas se crean con `registrar_peluqueria()`.

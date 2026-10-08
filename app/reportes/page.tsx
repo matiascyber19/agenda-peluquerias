@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Navbar from '../components/Navbar'
 import { INPUT, LABEL } from '../components/estilos'
+import { fechaEnChile } from '../lib/fechas'
 
 interface Reporte {
   periodo: { desde: string; hasta: string }
@@ -19,12 +20,6 @@ interface Reporte {
   gastos: { gastosPorCategoria: Record<string, number> }
   citas: { porEstado: Record<string, number> }
   servicios: { masRealizados: { id: string; nombre: string; cantidad: number }[] }
-}
-
-function comoFechaInput(fecha: Date) {
-  const mes = String(fecha.getMonth() + 1).padStart(2, '0')
-  const dia = String(fecha.getDate()).padStart(2, '0')
-  return `${fecha.getFullYear()}-${mes}-${dia}`
 }
 
 function formatearCLP(monto: number) {
@@ -72,8 +67,10 @@ function Barra({ etiqueta, valor, maximo, formato }: {
 }
 
 export default function ReportesPage() {
-  const primerDiaDelMes = comoFechaInput(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
-  const hoy = comoFechaInput(new Date())
+  // El mes en curso según Chile, como los períodos de la API. Así el servidor
+  // (en UTC) y el navegador calculan el mismo valor inicial.
+  const hoy = fechaEnChile(new Date())
+  const primerDiaDelMes = `${hoy.slice(0, 8)}01`
 
   const [desde, setDesde] = useState(primerDiaDelMes)
   const [hasta, setHasta] = useState(hoy)

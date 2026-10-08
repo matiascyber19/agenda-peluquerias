@@ -2,6 +2,7 @@ import { createClient } from '@/app/lib/supabase/server'
 import { type Embebido, uno } from '@/app/lib/supabase/embebido'
 import { buscarCruce, describirCruce, FILTRO_CITAS_DE_AGENDA, validarParticipantes } from '@/app/lib/citas'
 import { esFecha, inicioDelDiaEnChile, sumarDias } from '@/app/lib/fechas'
+import type { Cobro } from '@/app/lib/cobros'
 import { NextResponse } from 'next/server'
 
 interface ServicioCatalogo {
@@ -28,6 +29,7 @@ interface CitaRow {
         servicios: Embebido<{ nombre: string }>
       }[]
     | null
+  ventas: Cobro[] | null
 }
 
 // ============================================
@@ -37,7 +39,7 @@ interface CitaRow {
 //   ?peluquero_id=uuid       (filtrar por peluquero)
 //   ?estado=pendiente        (filtrar por estado)
 //   ?desde=2026-06-01&hasta=2026-06-30  (rango de días de Chile; acepta ISO completo)
-// Devuelve { citas: [{ id, inicio, fin, estado, notas, cliente, peluquero, servicios }] }
+// Devuelve { citas: [{ id, inicio, fin, estado, notas, cliente, peluquero, servicios, cobro }] }
 // ============================================
 export async function GET(request: Request) {
   const supabase = await createClient()
@@ -72,7 +74,8 @@ export async function GET(request: Request) {
         precio_congelado_clp,
         duracion_congelada_min,
         servicios ( id, nombre )
-      )
+      ),
+      ventas ( id, total_clp, medio_pago, fecha )
     `)
     .order('inicio', { ascending: true })
 
@@ -145,6 +148,7 @@ export async function GET(request: Request) {
         duracion_minutos: cs.duracion_congelada_min,
         precio_clp: cs.precio_congelado_clp,
       })),
+      cobro: cita.ventas?.[0] ?? null,
     }
   })
 

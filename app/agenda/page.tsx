@@ -4,6 +4,7 @@ import { use, useEffect, useMemo, useState } from 'react'
 import Navbar from '../components/Navbar'
 import ModalNuevaCita from '../components/ModalNuevaCita'
 import ModalDetalleCita from '../components/ModalDetalleCita'
+import type { Cobro } from '../lib/cobros'
 
 interface Cita {
   id: string
@@ -13,6 +14,7 @@ interface Cita {
   cliente: { nombre: string; telefono: string | null } | null
   peluquero: { id: string; nombre: string; color_agenda: string | null } | null
   servicios: { nombre: string; duracion_minutos: number; precio_clp: number }[]
+  cobro: Cobro | null
 }
 
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']

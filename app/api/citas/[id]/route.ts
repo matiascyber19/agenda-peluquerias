@@ -1,6 +1,8 @@
 import { createClient } from '@/app/lib/supabase/server'
 import { buscarCruce, describirCruce, esErrorDeCruce, MENSAJE_CRUCE, ocupaHorario, validarParticipantes } from '@/app/lib/citas'
 import { ESTADOS_SIN_COBRO } from '@/app/lib/cobros'
+import { usuarioConPeluqueria } from '@/app/lib/sesion'
+import { randomBytes } from 'node:crypto'
 import { NextResponse } from 'next/server'
 
 // ============================================
@@ -8,15 +10,18 @@ import { NextResponse } from 'next/server'
 // Actualiza una cita existente
 // Body esperado (todos opcionales):
 // {
-//   estado: "confirmada" | "completada" | "cancelada" | "no_show" | "pendiente" | "rechazada",
+//   estado: "confirmada" | "completada" | "cancelada" | "no_show" | "pendiente" | "rechazada" | "propuesta",
 //   inicio: "2026-06-08T15:00:00Z",
 //   fin: "2026-06-08T15:30:00Z",
 //   notas: "texto",
 //   peluquero_id: "uuid",
 //   cliente_id: "uuid"
 // }
-// Reservas en línea: una cita 'solicitada' solo pasa a 'confirmada'
-// (opcionalmente con otra hora o peluquero) o a 'rechazada', que es final.
+// Reservas en línea: una cita 'solicitada' pasa a 'confirmada' (opcionalmente
+// con otra hora o peluquero), a 'rechazada', que es final, o a 'propuesta':
+// se le propone otra hora al cliente y él la acepta o rechaza con el enlace
+// de propuesta_token (/propuesta/[token]). Solo dueño y recepción responden
+// solicitudes; un peluquero solo maneja sus propias citas.
 // ============================================
 export async function PATCH(
   request: Request,
@@ -37,7 +42,7 @@ export async function PATCH(
     const { estado, inicio, fin, notas, peluquero_id, cliente_id } = body
 
     // 3. Validar estado si viene
-    const estadosValidos = ['pendiente', 'confirmada', 'completada', 'cancelada', 'no_show', 'rechazada']
+    const estadosValidos = ['pendiente', 'confirmada', 'completada', 'cancelada', 'no_show', 'rechazada', 'propuesta']
     if (estado === 'solicitada') {
       return NextResponse.json(
         { error: 'Solo una reserva en línea puede quedar como solicitada' },
@@ -76,7 +81,7 @@ export async function PATCH(
     // 5. Cita actual (RLS solo deja ver las de esta peluquería)
     const { data: actual } = await supabase
       .from('citas')
-      .select('inicio, fin, estado, peluquero_id, ventas ( id )')
+      .select('inicio, fin, estado, peluquero_id, propuesta_token, inicio_solicitado, ventas ( id )')
       .eq('id', id)
       .maybeSingle()
 
@@ -92,6 +97,22 @@ export async function PATCH(
       )
     }
 
+    const esSolicitud = actual.estado === 'solicitada' || actual.estado === 'propuesta'
+
+    // Lo que no puede hacer un peluquero (la base también lo impide)
+    const sesion = await usuarioConPeluqueria(supabase)
+    if (sesion?.rol === 'peluquero') {
+      if (esSolicitud) {
+        return NextResponse.json(
+          { error: 'Las solicitudes las responde recepción o el dueño' },
+          { status: 403 }
+        )
+      }
+      if (peluquero_id !== undefined && peluquero_id !== sesion.peluqueroId) {
+        return NextResponse.json({ error: 'No puedes pasar tus citas a otro peluquero' }, { status: 403 })
+      }
+    }
+
     // Transiciones de las reservas en línea
     if (actual.estado === 'rechazada') {
       return NextResponse.json(
@@ -99,17 +120,27 @@ export async function PATCH(
         { status: 400 }
       )
     }
-    if (actual.estado === 'solicitada' && estado !== undefined && estado !== 'confirmada' && estado !== 'rechazada') {
+    if (esSolicitud && estado !== undefined && !['confirmada', 'rechazada', 'propuesta'].includes(estado)) {
       return NextResponse.json(
-        { error: 'Una solicitud solo puede confirmarse o rechazarse' },
+        { error: 'Una solicitud solo puede confirmarse, rechazarse o recibir otra hora propuesta' },
         { status: 400 }
       )
     }
-    if (estado === 'rechazada' && actual.estado !== 'solicitada') {
+    if ((estado === 'rechazada' || estado === 'propuesta') && !esSolicitud) {
       return NextResponse.json(
-        { error: 'Solo una solicitud en línea puede rechazarse; una cita se cancela' },
+        { error: 'Solo una solicitud en línea puede rechazarse o recibir otra hora; una cita se cancela o se mueve' },
         { status: 400 }
       )
+    }
+
+    // Proponer otra hora: se guarda la que pidió el cliente (la primera vez) y
+    // un enlace para que él responda. Volver a proponer conserva el enlace.
+    if (estado === 'propuesta') {
+      if (inicio === undefined) {
+        return NextResponse.json({ error: 'Para proponer otra hora, indica la hora nueva' }, { status: 400 })
+      }
+      updates.inicio_solicitado = actual.inicio_solicitado ?? actual.inicio
+      updates.propuesta_token = actual.propuesta_token ?? randomBytes(32).toString('hex')
     }
 
     // Si se mueve el inicio sin indicar el fin, la cita conserva su duración.

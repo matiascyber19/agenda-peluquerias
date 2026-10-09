@@ -1,6 +1,6 @@
 import { createClient } from '@/app/lib/supabase/server'
 import { type Embebido, uno } from '@/app/lib/supabase/embebido'
-import { usuarioConPeluqueria } from '@/app/lib/sesion'
+import { usuarioConPeluqueria, exigirRol } from '@/app/lib/sesion'
 import { esCobrable, esMedioDePago } from '@/app/lib/cobros'
 import { NextResponse } from 'next/server'
 
@@ -143,8 +143,8 @@ export async function POST(
 
 // ============================================
 // DELETE /api/citas/[id]/cobro
-// Anula el cobro de una cita (borra la venta y sus ítems). La cita conserva
-// su estado.
+// Anula el cobro de una cita (borra la venta, sus ítems y su comisión si no
+// está pagada). La cita conserva su estado. Solo dueño y recepción.
 // ============================================
 export async function DELETE(
   _request: Request,
@@ -153,6 +153,9 @@ export async function DELETE(
   try {
     const { id } = await params
     const supabase = await createClient()
+    // Solo dueño y recepcionista
+    const sinPermiso = await exigirRol(supabase, ['dueño', 'recepcionista'])
+    if (sinPermiso) return sinPermiso
     const sesion = await usuarioConPeluqueria(supabase)
     if (!sesion) {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
@@ -165,6 +168,10 @@ export async function DELETE(
       .select('id')
 
     if (error) {
+      // P0001: la base no deja anular un cobro cuya comisión ya se pagó (migración 006)
+      if (error.code === 'P0001') {
+        return NextResponse.json({ error: error.message }, { status: 409 })
+      }
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
     if (!data || data.length === 0) {

@@ -39,7 +39,7 @@ export async function avisarNuevaSolicitud(citaId: string, urlBase: string) {
     const { data: cita, error } = await admin
       .from('citas')
       .select(`
-        inicio, notas,
+        inicio, notas, estado,
         peluquerias ( nombre, email ),
         clientes ( nombre, telefono ),
         peluqueros ( nombre ),
@@ -70,6 +70,9 @@ export async function avisarNuevaSolicitud(citaId: string, urlBase: string) {
       hour12: false,
     })
 
+    // Con confirmación automática (migración 006) la reserva ya está en la agenda.
+    const confirmada = cita.estado === 'confirmada'
+
     const filas = [
       ['Cliente', `${cliente?.nombre ?? 'Sin nombre'}${cliente?.telefono ? ` · ${cliente.telefono}` : ''}`],
       ['Cuándo', cuando],
@@ -82,7 +85,9 @@ export async function avisarNuevaSolicitud(citaId: string, urlBase: string) {
     const html = `
       <div style="font-family:Arial,sans-serif;color:#111827;max-width:520px">
         <h2 style="margin:0 0 8px">Nueva reserva en línea</h2>
-        <p style="margin:0 0 16px;color:#6b7280">${escapar(peluqueria.nombre)} recibió una solicitud que espera tu respuesta.</p>
+        <p style="margin:0 0 16px;color:#6b7280">${escapar(peluqueria.nombre)} ${
+          confirmada ? 'recibió una reserva que ya quedó confirmada en la agenda.' : 'recibió una solicitud que espera tu respuesta.'
+        }</p>
         <table style="border-collapse:collapse;width:100%">
           ${filas
             .map(
@@ -92,7 +97,9 @@ export async function avisarNuevaSolicitud(citaId: string, urlBase: string) {
             .join('')}
         </table>
         <p style="margin:24px 0">
-          <a href="${escapar(`${urlBase}/solicitudes`)}" style="background:#0f172a;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none">Ver la solicitud</a>
+          <a href="${escapar(`${urlBase}/${confirmada ? 'agenda' : 'solicitudes'}`)}" style="background:#0f172a;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none">${
+            confirmada ? 'Ver la agenda' : 'Ver la solicitud'
+          }</a>
         </p>
       </div>`
 

@@ -4,7 +4,8 @@ import { NextResponse } from 'next/server'
 // ============================================
 // GET /api/me
 // Datos del usuario en sesión para el Navbar.
-// Devuelve { nombre, rol, peluqueria }
+// Devuelve { nombre, rol, peluqueria, peluquero_id }
+// peluquero_id: la ficha de peluquero de la cuenta (solo para el rol peluquero).
 // ============================================
 export async function GET() {
   const supabase = await createClient()
@@ -29,9 +30,16 @@ export async function GET() {
     ? peluqueria[0]?.nombre ?? null
     : peluqueria?.nombre ?? null
 
+  let peluqueroId: string | null = null
+  if (usuario.rol === 'peluquero') {
+    const { data: ficha } = await supabase.from('peluqueros').select('id').eq('usuario_id', user.id).maybeSingle()
+    peluqueroId = ficha?.id ?? null
+  }
+
   return NextResponse.json({
     nombre: usuario.nombre,
     rol: usuario.rol,
     peluqueria: nombrePeluqueria,
+    peluquero_id: peluqueroId,
   })
 }

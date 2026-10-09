@@ -11,28 +11,31 @@ export function avisarCambioEnSolicitudes() {
 
 /**
  * Reservas en línea que esperan respuesta. Se consulta al montar, al volver a
- * la pestaña, cada 30 segundos y cuando se responde una. null mientras carga
- * o si la consulta falla.
+ * la pestaña, cada 30 segundos y cuando se responde una. null mientras carga,
+ * si la consulta falla o si `activo` es false (los peluqueros no responden
+ * solicitudes).
  */
-export function useSolicitudesPendientes() {
+export function useSolicitudesPendientes(activo = true) {
   const [pendientes, setPendientes] = useState<number | null>(null)
 
   const cargar = useCallback(() => {
+    if (!activo) return
     fetch('/api/solicitudes')
       .then((res) => (res.ok ? res.json() : null))
       .then((json) => {
         if (json) setPendientes(json.pendientes)
       })
       .catch(() => {})
-  }, [])
+  }, [activo])
 
   useEffect(() => {
+    if (!activo) return
     cargar()
     window.addEventListener(EVENTO_SOLICITUDES, cargar)
     return () => window.removeEventListener(EVENTO_SOLICITUDES, cargar)
-  }, [cargar])
+  }, [activo, cargar])
 
   useMantenerActualizado(cargar, 30_000)
 
-  return pendientes
+  return activo ? pendientes : null
 }

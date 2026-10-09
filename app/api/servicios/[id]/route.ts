@@ -1,4 +1,5 @@
 import { createClient } from "@/app/lib/supabase/server";
+import { exigirRol } from "@/app/lib/sesion";
 import { NextResponse } from "next/server";
 
 //obtener un servicio por id
@@ -53,6 +54,9 @@ export async function PATCH(request: Request, {params}:{params: Promise<{id: str
     try{
         const {id} = await params //obtener id del servicio desde la URL
         const supabase = await createClient() //conectar usando la sesion actual
+        // Solo dueño
+        const sinPermiso = await exigirRol(supabase, ['dueño'])
+        if (sinPermiso) return sinPermiso
 
         //verificar usuario antes de permitir modificaciones en servicio
         const{
@@ -172,6 +176,9 @@ export async function DELETE(
     try{
         const {id} = await params //obtener id del servicio desde la URL
         const supabase = await createClient() //conectar usando sesión actual
+        // Solo dueño
+        const sinPermiso = await exigirRol(supabase, ['dueño'])
+        if (sinPermiso) return sinPermiso
 
         //Verificar usuario antes de permitir desactivar servicio
         const{

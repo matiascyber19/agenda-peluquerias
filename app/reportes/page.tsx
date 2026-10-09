@@ -1,15 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import Navbar from '../components/Navbar'
 import { INPUT, LABEL } from '../components/estilos'
-import { fechaEnChile } from '../lib/fechas'
+import { useHoyEnChile } from '../lib/useHoyEnChile'
 
 interface Reporte {
   periodo: { desde: string; hasta: string }
   resumen: {
     ingresosTotales: number
     gastosTotales: number
+    comisionesTotales: number
     balance: number
     totalVentas: number
     totalGastos: number
@@ -73,18 +75,19 @@ function Barra({ etiqueta, valor, maximo, formato }: {
 }
 
 export default function ReportesPage() {
-  // El mes en curso según Chile, como los períodos de la API. Así el servidor
-  // (en UTC) y el navegador calculan el mismo valor inicial.
-  const hoy = fechaEnChile(new Date())
-  const primerDiaDelMes = `${hoy.slice(0, 8)}01`
-
-  const [desde, setDesde] = useState(primerDiaDelMes)
-  const [hasta, setHasta] = useState(hoy)
+  // Por defecto, el mes en curso según Chile, como los períodos de la API.
+  // La página se genera al compilar: "hoy" solo se calcula en el navegador
+  // ('' en el servidor) y se usa mientras la persona no elija otras fechas.
+  const hoy = useHoyEnChile()
+  const [desdeElegido, setDesde] = useState<string | null>(null)
+  const [hastaElegido, setHasta] = useState<string | null>(null)
+  const desde = desdeElegido ?? (hoy ? `${hoy.slice(0, 8)}01` : '')
+  const hasta = hastaElegido ?? hoy
 
   // La respuesta recuerda qué período pidió: mientras no coincida con el
   // seleccionado, el reporte está cargando. Así el efecto no necesita
   // hacer setLoading(true) de forma síncrona.
-  const consulta = `${desde}|${hasta}`
+  const consulta = desde && hasta ? `${desde}|${hasta}` : ''
   const [respuesta, setRespuesta] = useState<{
     consulta: string
     reporte: Reporte | null
@@ -95,6 +98,7 @@ export default function ReportesPage() {
   const reporte = respuesta.reporte
 
   useEffect(() => {
+    if (!consulta) return
     const controller = new AbortController()
     const params = new URLSearchParams({ desde, hasta })
 
@@ -163,7 +167,7 @@ export default function ReportesPage() {
         ) : !reporte ? null : (
           <>
             {/* Resumen */}
-            <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-5">
               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Ingresos</p>
                 <p className="mt-1 text-2xl font-bold text-gray-900">{formatearCLP(reporte.resumen.ingresosTotales)}</p>
@@ -172,13 +176,24 @@ export default function ReportesPage() {
               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Gastos</p>
                 <p className="mt-1 text-2xl font-bold text-gray-900">{formatearCLP(reporte.resumen.gastosTotales)}</p>
-                <p className="mt-1 text-xs text-gray-400">{contar(reporte.resumen.totalGastos, 'registro', 'registros')}</p>
+                <p className="mt-1 text-xs text-gray-400">
+                  {contar(reporte.resumen.totalGastos, 'registro', 'registros')} ·{' '}
+                  <Link href="/gastos" className="font-medium text-slate-600 hover:underline">Registrar</Link>
+                </p>
+              </div>
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Comisiones</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">{formatearCLP(reporte.resumen.comisionesTotales)}</p>
+                <p className="mt-1 text-xs text-gray-400">
+                  <Link href="/comisiones" className="font-medium text-slate-600 hover:underline">Ver detalle</Link>
+                </p>
               </div>
               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Balance</p>
                 <p className={`mt-1 text-2xl font-bold ${reporte.resumen.balance >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                   {formatearCLP(reporte.resumen.balance)}
                 </p>
+                <p className="mt-1 text-xs text-gray-400">Ingresos − gastos − comisiones</p>
               </div>
               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500">No-show</p>

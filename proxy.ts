@@ -1,16 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-
-const RUTAS_PROTEGIDAS = [
-  '/dashboard',
-  '/agenda',
-  '/clientes',
-  '/servicios',
-  '/peluqueros',
-  '/reportes',
-  '/configuracion',
-  '/solicitudes',
-]
+import { esRol, paginaDe } from './app/lib/roles'
 
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next()
@@ -35,15 +25,30 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
-  const esProtegida = RUTAS_PROTEGIDAS.some(
-    (ruta) => pathname === ruta || pathname.startsWith(`${ruta}/`)
-  )
+  const pagina = paginaDe(pathname)
 
-  if (esProtegida && !user) {
+  if (pagina && !user) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  if (pathname === '/login' && user) {
+  // Rol de la cuenta. Sin fila visible en `usuarios` (cuenta desactivada o sin
+  // peluquería) no hay rol, y no entra al panel.
+  let rol = null
+  if (user) {
+    const { data: usuario } = await supabase.from('usuarios').select('rol').eq('id', user.id).maybeSingle()
+    rol = esRol(usuario?.rol) ? usuario.rol : null
+  }
+
+  if (pagina && !rol) {
+    return NextResponse.redirect(new URL('/login?acceso=sin-cuenta', request.url))
+  }
+
+  // Una página que no es para su rol lo devuelve al dashboard.
+  if (pagina && rol && !pagina.roles.includes(rol)) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  if (pathname === '/login' && rol) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
@@ -54,12 +59,15 @@ export const config = {
   matcher: [
     '/dashboard/:path*',
     '/agenda/:path*',
+    '/solicitudes/:path*',
     '/clientes/:path*',
     '/servicios/:path*',
     '/peluqueros/:path*',
+    '/equipo/:path*',
     '/reportes/:path*',
+    '/gastos/:path*',
+    '/comisiones/:path*',
     '/configuracion/:path*',
-    '/solicitudes/:path*',
     '/login',
   ],
 }

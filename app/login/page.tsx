@@ -1,15 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { use, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 
-export default function LoginPage() {
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ acceso?: string | string[] }>
+}) {
   const router = useRouter()
+  // proxy.ts manda aquí con ?acceso=sin-cuenta a una cuenta desactivada o sin peluquería.
+  const { acceso } = use(searchParams)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState(
+    acceso === 'sin-cuenta' ? 'Tu cuenta no tiene acceso a ninguna peluquería o fue desactivada. Habla con el dueño.' : ''
+  )
   const [loading, setLoading] = useState(false)
 
   async function handleLogin() {

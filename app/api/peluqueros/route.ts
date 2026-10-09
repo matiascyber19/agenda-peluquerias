@@ -1,6 +1,7 @@
 //hrm me tomé esta libertad pq crei necesario poder agregar o leiminar peluqueros en las peluquerias, y que el dueño del local pueda hacerlo, no??? en vez de hacerlo nosotros
 //hay que agregar el boton de Peluqueros en el dashboard jejejeje
 import { createClient } from "@/app/lib/supabase/server";
+import { exigirRol, usuarioConPeluqueria } from "@/app/lib/sesion";
 import { NextResponse } from "next/server";
 
 //obtener peluqueros
@@ -21,10 +22,18 @@ export async function GET() {
     }
 
     //consultar peluqueros permitidos para el usuario según politicas RLS
-    const {data:peluqueros,error: peluquerosError} = await supabase
+    let consulta = supabase
         .from('peluqueros') //de la tabla peluqueros
         .select('id,usuario_id,nombre,telefono,tipo_contrato,porcentaje_comision,color_agenda,activo,creado_en') //obtiene los datpsnecesarios para el frontend
         .order('nombre',{ascending: true}) //los ordena por orden alfabetico
+
+    //un peluquero solo se ve a sí mismo: así al agendar solo puede elegirse a él
+    const sesion = await usuarioConPeluqueria(supabase)
+    if(sesion?.rol === 'peluquero'){
+        consulta = consulta.eq('id', sesion.peluqueroId ?? '00000000-0000-0000-0000-000000000000')
+    }
+
+    const {data:peluqueros,error: peluquerosError} = await consulta
 
     //detener la consulta si supabase no obtiene los peluqueros
     if(peluquerosError){
@@ -47,6 +56,9 @@ export async function GET() {
 export async function POST(request: Request){
     try{
         const supabase = await createClient() //conectar usando sesión actual
+        // Solo dueño
+        const sinPermiso = await exigirRol(supabase, ['dueño'])
+        if (sinPermiso) return sinPermiso
 
         //verificar usuario antes de permitir crear peluquero
         const{

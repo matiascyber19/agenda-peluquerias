@@ -15,13 +15,24 @@ export interface Solicitud {
   cliente: { id: string; nombre: string; telefono: string | null } | null
   peluquero: { id: string; nombre: string; color_agenda: string | null } | null
   servicios: { nombre: string; duracion_minutos: number; precio_clp: number }[]
+  estado?: string
+  /** Hora que pidió el cliente, cuando se le propuso otra */
+  inicio_solicitado?: string | null
+  propuesta_token?: string | null
 }
 
 export interface Respondida {
   solicitud: Solicitud
-  resultado: 'aceptada' | 'cambiada' | 'rechazada'
+  resultado: 'aceptada' | 'cambiada' | 'rechazada' | 'propuesta'
   inicio: string
   peluquero: string
+  /** Enlace para que el cliente acepte o rechace la hora propuesta */
+  enlace?: string
+}
+
+/** Enlace público de una propuesta (/propuesta/[token]). */
+export function enlacePropuesta(token: string) {
+  return `${window.location.origin}/propuesta/${token}`
 }
 
 const ZONA = 'America/Santiago'
@@ -82,7 +93,7 @@ export default function TarjetaSolicitud({ solicitud, peluqueros, consultadoEn, 
   const [fecha, setFecha] = useState(original.fecha)
   const [hora, setHora] = useState(original.hora)
   const [peluqueroId, setPeluqueroId] = useState(solicitud.peluquero?.id ?? '')
-  const [enviando, setEnviando] = useState<'' | 'aceptar' | 'rechazar' | 'cambiar'>('')
+  const [enviando, setEnviando] = useState<'' | 'aceptar' | 'rechazar' | 'cambiar' | 'proponer'>('')
   const [error, setError] = useState('')
 
   const duracion = solicitud.servicios.reduce((t, s) => t + s.duracion_minutos, 0)
@@ -90,7 +101,7 @@ export default function TarjetaSolicitud({ solicitud, peluqueros, consultadoEn, 
   const nombreCliente = solicitud.cliente?.nombre ?? 'Cliente'
 
   async function responder(
-    accion: 'aceptar' | 'rechazar' | 'cambiar',
+    accion: 'aceptar' | 'rechazar' | 'cambiar' | 'proponer',
     cuerpo: Record<string, string>,
     resultado: Respondida['resultado'],
     peluquero: string
@@ -108,7 +119,14 @@ export default function TarjetaSolicitud({ solicitud, peluqueros, consultadoEn, 
         setError(json.error ?? 'No pudimos responder la solicitud')
         return
       }
-      onRespondida({ solicitud, resultado, inicio: json.cita?.inicio ?? cuerpo.inicio ?? solicitud.inicio, peluquero })
+      const token = json.cita?.propuesta_token as string | undefined
+      onRespondida({
+        solicitud,
+        resultado,
+        inicio: json.cita?.inicio ?? cuerpo.inicio ?? solicitud.inicio,
+        peluquero,
+        enlace: resultado === 'propuesta' && token ? enlacePropuesta(token) : undefined,
+      })
     } catch {
       setError('No pudimos conectar con el servidor')
     } finally {
@@ -125,15 +143,18 @@ export default function TarjetaSolicitud({ solicitud, peluqueros, consultadoEn, 
     responder('rechazar', { estado: 'rechazada' }, 'rechazada', solicitud.peluquero?.nombre ?? '')
   }
 
-  function aceptarConCambio() {
+  // Otra hora: se confirma directo (ya se habló con el cliente) o se le
+  // propone y él la acepta o rechaza con un enlace.
+  function conOtraHora(modo: 'confirmar' | 'proponer') {
     if (!fecha || !/^\d{2}:\d{2}$/.test(hora)) return setError('Elige el día y la hora')
     if (!peluqueroId) return setError('Elige un peluquero')
     const inicio = instanteEnChile(fecha, hora).toISOString()
 
-    const cuerpo: Record<string, string> = { estado: 'confirmada', inicio }
+    const cuerpo: Record<string, string> = { estado: modo === 'confirmar' ? 'confirmada' : 'propuesta', inicio }
     if (peluqueroId !== solicitud.peluquero?.id) cuerpo.peluquero_id = peluqueroId
     const peluquero = peluqueros.find((p) => p.id === peluqueroId)?.nombre ?? solicitud.peluquero?.nombre ?? ''
-    responder('cambiar', cuerpo, 'cambiada', peluquero)
+    if (modo === 'confirmar') responder('cambiar', cuerpo, 'cambiada', peluquero)
+    else responder('proponer', cuerpo, 'propuesta', peluquero)
   }
 
   return (
@@ -228,8 +249,11 @@ export default function TarjetaSolicitud({ solicitud, peluqueros, consultadoEn, 
       <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-4">
         {cambiando ? (
           <>
-            <button type="button" onClick={aceptarConCambio} disabled={!!enviando} className={BOTON_CREAR}>
-              {enviando === 'cambiar' ? 'Guardando...' : 'Aceptar con este cambio'}
+            <button type="button" onClick={() => conOtraHora('proponer')} disabled={!!enviando} className={BOTON_PRIMARIO}>
+              {enviando === 'proponer' ? 'Guardando...' : 'Proponer al cliente'}
+            </button>
+            <button type="button" onClick={() => conOtraHora('confirmar')} disabled={!!enviando} className={BOTON_CREAR}>
+              {enviando === 'cambiar' ? 'Guardando...' : 'Confirmar directo'}
             </button>
             <button
               type="button"
@@ -276,37 +300,59 @@ export function TarjetaRespondida({
   peluqueria: string
   onListo: () => void
 }) {
-  const { solicitud, resultado, inicio, peluquero } = respondida
+  const { solicitud, resultado, inicio, peluquero, enlace } = respondida
+  const [copiado, setCopiado] = useState(false)
   const nombre = solicitud.cliente?.nombre?.split(' ')[0] ?? ''
   const cuando = formatearCuando(inicio)
   const en = peluqueria ? ` en ${peluqueria}` : ''
 
   const mensaje =
-    resultado === 'rechazada'
+    resultado === 'propuesta'
+      ? `Hola ${nombre}, no tenemos disponible la hora que pediste${en}. Te proponemos el ${cuando} con ${peluquero}. Acéptala o recházala aquí: ${enlace ?? ''}`
+      : resultado === 'rechazada'
       ? `Hola ${nombre}, lamentablemente no podemos atenderte el ${formatearCuando(solicitud.inicio)}${en}. ¿Te acomoda otro horario?`
       : resultado === 'cambiada'
         ? `Hola ${nombre}, no teníamos disponible la hora que pediste, así que te agendamos el ${cuando} con ${peluquero}${en}. Si no te acomoda, avísanos.`
         : `Hola ${nombre}, te confirmamos tu hora${en}: ${cuando} con ${peluquero}. ¡Te esperamos!`
 
   const titulo =
-    resultado === 'rechazada'
-      ? `Rechazaste la solicitud de ${solicitud.cliente?.nombre ?? 'el cliente'}`
-      : `Agendada: ${solicitud.cliente?.nombre ?? 'cliente'}, ${cuando} con ${peluquero}`
+    resultado === 'propuesta'
+      ? `Propuesta para ${solicitud.cliente?.nombre ?? 'el cliente'}: ${cuando} con ${peluquero}`
+      : resultado === 'rechazada'
+        ? `Rechazaste la solicitud de ${solicitud.cliente?.nombre ?? 'el cliente'}`
+        : `Agendada: ${solicitud.cliente?.nombre ?? 'cliente'}, ${cuando} con ${peluquero}`
+
+  async function copiar() {
+    if (!enlace) return
+    try {
+      await navigator.clipboard.writeText(enlace)
+      setCopiado(true)
+      setTimeout(() => setCopiado(false), 2000)
+    } catch {
+      setCopiado(false)
+    }
+  }
 
   return (
     <article
       className={`rounded-2xl border p-5 shadow-sm ${
-        resultado === 'rechazada' ? 'border-gray-200 bg-gray-50' : 'border-green-200 bg-green-50'
+        resultado === 'rechazada'
+          ? 'border-gray-200 bg-gray-50'
+          : resultado === 'propuesta'
+            ? 'border-blue-200 bg-blue-50'
+            : 'border-green-200 bg-green-50'
       }`}
     >
       <p className="text-sm font-semibold text-gray-900">
-        {resultado === 'rechazada' ? '✕ ' : '✓ '}
+        {resultado === 'rechazada' ? '✕ ' : resultado === 'propuesta' ? '↻ ' : '✓ '}
         {titulo}
       </p>
       <p className="mt-1 text-sm text-gray-500">
-        {resultado === 'rechazada'
-          ? 'La hora quedó libre. Avísale al cliente para que elija otra.'
-          : 'Ya está en la agenda. Avísale al cliente que quedó confirmada.'}
+        {resultado === 'propuesta'
+          ? 'La hora queda reservada hasta que el cliente responda. Mándale el enlace para que la acepte o la rechace.'
+          : resultado === 'rechazada'
+            ? 'La hora quedó libre. Avísale al cliente para que elija otra.'
+            : 'Ya está en la agenda. Avísale al cliente que quedó confirmada.'}
       </p>
       <div className="mt-4 flex flex-wrap gap-3">
         {solicitud.cliente?.telefono ? (
@@ -321,8 +367,123 @@ export function TarjetaRespondida({
         ) : (
           <span className="text-sm text-gray-400">El cliente no dejó teléfono.</span>
         )}
+        {enlace && (
+          <button type="button" onClick={copiar} className={BOTON_SECUNDARIO}>
+            {copiado ? 'Copiado ✓' : 'Copiar enlace'}
+          </button>
+        )}
         <button type="button" onClick={onListo} className={BOTON_PRIMARIO}>
           Listo
+        </button>
+      </div>
+    </article>
+  )
+}
+
+/**
+ * Hora propuesta que espera la respuesta del cliente: reenviarle el enlace,
+ * confirmarla igual (si aceptó por teléfono) o cancelarla.
+ */
+export function TarjetaPropuesta({
+  propuesta,
+  peluqueria,
+  onCambio,
+}: {
+  propuesta: Solicitud
+  peluqueria: string
+  onCambio: () => void
+}) {
+  const [enviando, setEnviando] = useState<'' | 'confirmar' | 'cancelar'>('')
+  const [copiado, setCopiado] = useState(false)
+  const [error, setError] = useState('')
+
+  const nombre = propuesta.cliente?.nombre ?? 'Cliente'
+  const cuando = formatearCuando(propuesta.inicio)
+  const en = peluqueria ? ` en ${peluqueria}` : ''
+  const token = propuesta.propuesta_token
+
+  function mensaje() {
+    const primerNombre = nombre.split(' ')[0]
+    return `Hola ${primerNombre}, te proponemos el ${cuando} con ${propuesta.peluquero?.nombre ?? 'nosotros'}${en}. Acéptala o recházala aquí: ${token ? enlacePropuesta(token) : ''}`
+  }
+
+  async function copiar() {
+    if (!token) return
+    try {
+      await navigator.clipboard.writeText(enlacePropuesta(token))
+      setCopiado(true)
+      setTimeout(() => setCopiado(false), 2000)
+    } catch {
+      setError('No pudimos copiar el enlace')
+    }
+  }
+
+  async function cambiarEstado(estado: 'confirmada' | 'rechazada') {
+    if (estado === 'rechazada' && !window.confirm(`¿Cancelar la propuesta para ${nombre}? La hora queda libre.`)) return
+    setEnviando(estado === 'confirmada' ? 'confirmar' : 'cancelar')
+    setError('')
+    try {
+      const res = await fetch(`/api/citas/${propuesta.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(json.error ?? 'No pudimos actualizar la propuesta')
+        return
+      }
+      onCambio()
+    } catch {
+      setError('No pudimos conectar con el servidor')
+    } finally {
+      setEnviando('')
+    }
+  }
+
+  return (
+    <article className="rounded-2xl border border-blue-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-gray-900 first-letter:uppercase">{cuando}</p>
+          <p className="mt-0.5 text-sm text-gray-500">
+            {nombre}
+            {propuesta.peluquero?.nombre && ` · con ${propuesta.peluquero.nombre}`}
+          </p>
+        </div>
+        <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">Esperando al cliente</span>
+      </div>
+      {propuesta.inicio_solicitado && (
+        <p className="mt-2 text-xs text-gray-400">Había pedido: {formatearCuando(propuesta.inicio_solicitado)}</p>
+      )}
+
+      {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
+
+      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-4">
+        {propuesta.cliente?.telefono && token && (
+          <button
+            type="button"
+            onClick={() => window.open(enlaceWhatsApp(propuesta.cliente!.telefono!, mensaje()), '_blank', 'noopener')}
+            className={BOTON_CREAR}
+          >
+            Reenviar por WhatsApp
+          </button>
+        )}
+        {token && (
+          <button type="button" onClick={copiar} className={BOTON_SECUNDARIO}>
+            {copiado ? 'Copiado ✓' : 'Copiar enlace'}
+          </button>
+        )}
+        <button type="button" onClick={() => cambiarEstado('confirmada')} disabled={!!enviando} className={BOTON_SECUNDARIO}>
+          {enviando === 'confirmar' ? 'Confirmando...' : 'Aceptó por teléfono: confirmar'}
+        </button>
+        <button
+          type="button"
+          onClick={() => cambiarEstado('rechazada')}
+          disabled={!!enviando}
+          className="ml-auto text-sm font-medium text-gray-400 transition-colors hover:text-red-500 disabled:opacity-50"
+        >
+          {enviando === 'cancelar' ? 'Cancelando...' : 'Cancelar propuesta'}
         </button>
       </div>
     </article>

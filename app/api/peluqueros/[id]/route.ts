@@ -1,4 +1,5 @@
 import { createClient } from "@/app/lib/supabase/server"
+import { exigirRol } from "@/app/lib/sesion"
 import { NextResponse } from "next/server"
 
 //OBTENER PELUQUERO POR ID
@@ -70,6 +71,9 @@ export async function PATCH(
     try{
         const {id} = await params //obtener id del peluquero desde la URL
         const supabase = await createClient() //conectar usando sesión actual
+        // Solo dueño
+        const sinPermiso = await exigirRol(supabase, ['dueño'])
+        if (sinPermiso) return sinPermiso
 
         //verificar usuario antes de permitir modificar peluquero
         const{
@@ -262,6 +266,9 @@ export async function DELETE(
     try{
         const {id} = await params //obtener id del peluquero desde la URL
         const supabase = await createClient() //conectar usando sesión actual
+        // Solo dueño
+        const sinPermiso = await exigirRol(supabase, ['dueño'])
+        if (sinPermiso) return sinPermiso
 
         //verificar usuario antes de permitir desactivar peluquero
         const{

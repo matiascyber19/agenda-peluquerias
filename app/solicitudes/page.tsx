@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import Navbar from '../components/Navbar'
 import { avisarCambioEnSolicitudes } from '../lib/useSolicitudesPendientes'
+import { useMantenerActualizado } from '../lib/useMantenerActualizado'
 import TarjetaSolicitud, { TarjetaRespondida, type Respondida, type Solicitud } from './TarjetaSolicitud'
 
 export default function SolicitudesPage() {
@@ -16,8 +17,8 @@ export default function SolicitudesPage() {
   // Las respondidas quedan a la vista hasta apretar "Listo", para poder avisar al cliente.
   const [respondidas, setRespondidas] = useState<Respondida[]>([])
 
-  // Solo toca el estado cuando llega la respuesta, para poder llamarla desde el
-  // efecto de montaje y desde el intervalo sin provocar renders en cascada.
+  // Solo toca el estado cuando llega la respuesta, para poder llamarla al
+  // montar y al refrescar sin provocar renders en cascada.
   const pedirSolicitudes = useCallback(() => {
     const params = new URLSearchParams({ estado: 'solicitada', desde: new Date().toISOString() })
     fetch(`/api/citas?${params.toString()}`)
@@ -35,10 +36,11 @@ export default function SolicitudesPage() {
       .finally(() => setCargando(false))
   }, [])
 
+  // Las solicitudes nuevas aparecen al volver a la pestaña y cada 30 segundos.
+  useMantenerActualizado(pedirSolicitudes, 30_000)
+
   useEffect(() => {
     pedirSolicitudes()
-    // Revisa cada minuto si llegaron solicitudes nuevas.
-    const intervalo = setInterval(pedirSolicitudes, 60_000)
 
     fetch('/api/peluqueros')
       .then((res) => (res.ok ? res.json() : { peluqueros: [] }))
@@ -54,8 +56,6 @@ export default function SolicitudesPage() {
         if (json?.peluqueria) setPeluqueria(json.peluqueria)
       })
       .catch(() => {})
-
-    return () => clearInterval(intervalo)
   }, [pedirSolicitudes])
 
   function alResponder(respondida: Respondida) {

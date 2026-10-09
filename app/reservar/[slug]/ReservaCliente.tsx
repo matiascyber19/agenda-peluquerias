@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useRouter } from 'next/navigation'
 import { INPUT, LABEL } from '@/app/components/estilos'
 import {
   enlaceWhatsApp,
@@ -8,6 +9,7 @@ import {
   type PeluqueriaPublica,
   type ResumenReserva,
 } from '@/app/lib/reserva'
+import { useMantenerActualizado } from '@/app/lib/useMantenerActualizado'
 
 // Se ofrecen hoy y los próximos 30 días, igual que la regla de la migración 003.
 const DIAS_A_MOSTRAR = 31
@@ -28,6 +30,13 @@ function formatearDiaLargo(fecha: string) {
     day: 'numeric',
     month: 'long',
   })
+}
+
+/** Consulta de horas libres para un día, unos servicios y (opcional) un peluquero. */
+function urlHoras(slug: string, fecha: string, servicios: string[], peluqueroId: string) {
+  const params = new URLSearchParams({ fecha, servicios: servicios.join(',') })
+  if (peluqueroId) params.set('peluquero', peluqueroId)
+  return `/api/reservar/${slug}/disponibilidad?${params.toString()}`
 }
 
 // "Hoy" no cambia mientras la página está abierta: no hace falta suscribirse.
@@ -57,8 +66,19 @@ export default function ReservaCliente({ slug, peluqueria }: Props) {
     })
   }, [hoy])
 
-  const [elegidos, setElegidos] = useState<string[]>([])
-  const [peluqueroId, setPeluqueroId] = useState('')
+  const router = useRouter()
+  const [elegidosGuardados, setElegidos] = useState<string[]>([])
+  const [peluqueroGuardado, setPeluqueroId] = useState('')
+  // La página se actualiza sola (más abajo): si la peluquería quita un servicio
+  // o un peluquero con la página abierta, lo elegido que ya no existe no cuenta.
+  // Depende de los ids como texto: al refrescar llegan objetos nuevos con los
+  // mismos servicios, y eso no debe volver a pedir las horas.
+  const idsServicios = peluqueria.servicios.map((s) => s.id).join(',')
+  const elegidos = useMemo(() => {
+    const vigentes = new Set(idsServicios.split(','))
+    return elegidosGuardados.filter((id) => vigentes.has(id))
+  }, [elegidosGuardados, idsServicios])
+  const peluqueroId = peluqueria.peluqueros.some((p) => p.id === peluqueroGuardado) ? peluqueroGuardado : ''
   const [fecha, setFecha] = useState('')
   const [horaElegida, setHoraElegida] = useState<HoraLibre | null>(null)
   const [recarga, setRecarga] = useState(0)
@@ -93,10 +113,8 @@ export default function ReservaCliente({ slug, peluqueria }: Props) {
   useEffect(() => {
     if (!consulta) return
     const controller = new AbortController()
-    const params = new URLSearchParams({ fecha, servicios: elegidos.join(',') })
-    if (peluqueroId) params.set('peluquero', peluqueroId)
 
-    fetch(`/api/reservar/${slug}/disponibilidad?${params.toString()}`, { signal: controller.signal })
+    fetch(urlHoras(slug, fecha, elegidos, peluqueroId), { signal: controller.signal })
       .then(async (res) => {
         const json = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(json.error ?? 'No pudimos cargar las horas')
@@ -110,6 +128,32 @@ export default function ReservaCliente({ slug, peluqueria }: Props) {
 
     return () => controller.abort()
   }, [consulta, fecha, elegidos, peluqueroId, slug])
+
+  // Si la peluquería cambia sus servicios, peluqueros, horarios o WhatsApp con
+  // la página abierta, se ve al volver a la pestaña o al minuto, sin recargar.
+  // Las horas se vuelven a pedir en silencio, sin pasar por "Cargando horas...",
+  // y si la hora elegida ya se tomó, se suelta.
+  function refrescar() {
+    if (resumen) return
+    router.refresh()
+    if (!consulta) return
+    const consultaActual = consulta
+    fetch(urlHoras(slug, fecha, elegidos, peluqueroId))
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (!json) return
+        const lista = (json.horas ?? []) as HoraLibre[]
+        setRespuesta((previa) =>
+          previa.consulta === consultaActual ? { consulta: consultaActual, horas: lista, error: '' } : previa
+        )
+        if (horaElegida && !lista.some((h) => h.inicio === horaElegida.inicio)) {
+          setHoraElegida(null)
+          setError('La hora que elegiste ya no está disponible. Elige otra.')
+        }
+      })
+      .catch(() => {})
+  }
+  useMantenerActualizado(refrescar, 60_000)
 
   function alternarServicio(id: string) {
     setElegidos((previos) => (previos.includes(id) ? previos.filter((s) => s !== id) : [...previos, id]))

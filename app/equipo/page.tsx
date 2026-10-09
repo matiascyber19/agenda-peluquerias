@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Navbar from '../components/Navbar'
-import { BOTON_PRIMARIO, INPUT, LABEL } from '../components/estilos'
+import { BOTON_CREAR, INPUT, LABEL } from '../components/estilos'
 import { crearInvitacion, ListaInvitaciones, ModalInvitacionCreada, type Invitacion } from '../components/Invitaciones'
 import { esRol, NOMBRE_ROL } from '../lib/roles'
 import { useMantenerActualizado } from '../lib/useMantenerActualizado'
@@ -153,7 +153,7 @@ export default function EquipoPage() {
               </div>
             )}
             <div>
-              <button type="submit" disabled={creando} className={`${BOTON_PRIMARIO} w-full`}>
+              <button type="submit" disabled={creando} className={`${BOTON_CREAR} w-full`}>
                 {creando ? 'Creando...' : 'Crear enlace de invitación'}
               </button>
             </div>

@@ -252,7 +252,7 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
         aria-modal="true"
         aria-label="Menú"
         inert={!abierto}
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-slate-950 text-slate-200 shadow-2xl transition-transform duration-200 ease-out ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-slate-950 text-slate-200 shadow-2xl [color-scheme:dark] transition-transform duration-200 ease-out ${
           abierto ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

@@ -11,19 +11,23 @@ export const NOMBRE_ROL: Record<Rol, string> = {
 
 const TODOS: Rol[] = ['dueño', 'recepcionista', 'peluquero']
 
-/** Páginas del panel y quién puede entrar a cada una, en el orden del menú. */
-export const PAGINAS: { href: string; label: string; roles: Rol[] }[] = [
-  { href: '/dashboard', label: 'Dashboard', roles: TODOS },
-  { href: '/agenda', label: 'Agenda', roles: TODOS },
-  { href: '/solicitudes', label: 'Solicitudes', roles: ['dueño', 'recepcionista'] },
-  { href: '/clientes', label: 'Clientes', roles: ['dueño', 'recepcionista'] },
-  { href: '/servicios', label: 'Servicios', roles: ['dueño'] },
-  { href: '/peluqueros', label: 'Peluqueros', roles: ['dueño'] },
-  { href: '/equipo', label: 'Equipo', roles: ['dueño'] },
-  { href: '/reportes', label: 'Reportes', roles: ['dueño'] },
-  { href: '/gastos', label: 'Gastos', roles: ['dueño'] },
-  { href: '/comisiones', label: 'Comisiones', roles: ['dueño', 'peluquero'] },
-  { href: '/configuracion', label: 'Configuración', roles: ['dueño'] },
+/** Grupos del menú, en orden. */
+export const GRUPOS = ['Día a día', 'Negocio', 'Finanzas', 'Ajustes'] as const
+export type Grupo = (typeof GRUPOS)[number]
+
+/** Páginas del panel, quién puede entrar a cada una y su grupo, en el orden del menú. */
+export const PAGINAS: { href: string; label: string; grupo: Grupo; roles: Rol[] }[] = [
+  { href: '/dashboard', label: 'Dashboard', grupo: 'Día a día', roles: TODOS },
+  { href: '/agenda', label: 'Agenda', grupo: 'Día a día', roles: TODOS },
+  { href: '/solicitudes', label: 'Solicitudes', grupo: 'Día a día', roles: ['dueño', 'recepcionista'] },
+  { href: '/clientes', label: 'Clientes', grupo: 'Día a día', roles: ['dueño', 'recepcionista'] },
+  { href: '/servicios', label: 'Servicios', grupo: 'Negocio', roles: ['dueño'] },
+  { href: '/peluqueros', label: 'Peluqueros', grupo: 'Negocio', roles: ['dueño'] },
+  { href: '/equipo', label: 'Equipo', grupo: 'Negocio', roles: ['dueño'] },
+  { href: '/reportes', label: 'Reportes', grupo: 'Finanzas', roles: ['dueño'] },
+  { href: '/gastos', label: 'Gastos', grupo: 'Finanzas', roles: ['dueño'] },
+  { href: '/comisiones', label: 'Comisiones', grupo: 'Finanzas', roles: ['dueño', 'peluquero'] },
+  { href: '/configuracion', label: 'Configuración', grupo: 'Ajustes', roles: ['dueño'] },
 ]
 
 export function esRol(valor: unknown): valor is Rol {

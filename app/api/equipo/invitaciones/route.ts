@@ -4,8 +4,10 @@ import { NextResponse } from 'next/server'
 
 // ============================================
 // POST /api/equipo/invitaciones
-// Body: { rol: "recepcionista" } o { rol: "peluquero", peluquero_id }
+// Body: { rol: "recepcionista" } o { rol: "peluquero", peluquero_id? }
 // Crea una invitación de 7 días. La persona entra con /unirse/[token].
+// Una invitación de peluquero sin peluquero_id crea la ficha al aceptarse
+// (migración 007); con peluquero_id vincula la cuenta a esa ficha.
 // Solo el dueño.
 // ============================================
 export async function POST(request: Request) {
@@ -23,10 +25,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Elige si es peluquero o recepcionista' }, { status: 400 })
     }
 
-    if (rol === 'peluquero') {
-      if (typeof peluquero_id !== 'string' || !peluquero_id) {
-        return NextResponse.json({ error: 'Elige la ficha del peluquero' }, { status: 400 })
-      }
+    const conFicha = rol === 'peluquero' && typeof peluquero_id === 'string' && peluquero_id !== ''
+    if (conFicha) {
       const { data: ficha } = await supabase
         .from('peluqueros')
         .select('usuario_id')
@@ -45,13 +45,18 @@ export async function POST(request: Request) {
       .insert({
         peluqueria_id: sesion.peluqueriaId,
         rol,
-        peluquero_id: rol === 'peluquero' ? peluquero_id : null,
+        peluquero_id: conFicha ? peluquero_id : null,
       })
       .select('id, token, rol, peluquero_id, vence_en')
       .single()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      // 23514: la base todavía exige ficha para invitar peluqueros
+      const mensaje =
+        error.code === '23514'
+          ? 'Para invitar sin elegir ficha falta ejecutar la migración 007 en Supabase'
+          : error.message
+      return NextResponse.json({ error: mensaje }, { status: 500 })
     }
     return NextResponse.json({ invitacion: data }, { status: 201 })
   } catch (error) {

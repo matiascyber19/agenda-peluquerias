@@ -4,7 +4,7 @@ Pasos que dependen de las cuentas de Supabase y Vercel o de los datos reales de 
 
 ## Supabase (proyecto real)
 
-- [ ] **Ejecutar la migración 007** (`supabase/migraciones/007_invitar_peluqueros_sin_ficha.sql`) en el SQL Editor. La consulta final tiene que dar todo `true`. Con ella, se puede invitar a un peluquero sin crear su ficha antes: la ficha se crea sola cuando la persona se une. Hasta ejecutarla, "Invitar peluquero" responde que falta la migración.
+- [x] **Ejecutar la migración 007** (ejecutada el 9 de octubre) (`supabase/migraciones/007_invitar_peluqueros_sin_ficha.sql`): se puede invitar a un peluquero sin crear su ficha antes; la ficha se crea sola cuando la persona se une. Supabase muestra un aviso de RLS falso (confunde el `insert into peluqueros` de la función con una tabla nueva): se ejecuta con **Run without RLS**, que no desactiva nada.
 - [x] **Ejecutar la migración 006** (ejecutada el 9 de octubre): equipo con roles, comisiones, reglas de reserva y propuestas.
 - [x] **Ejecutar la migración 005** (ejecutada el 8 de octubre) (`supabase/migraciones/005_proteccion_cruces_y_cobros.sql`) en el SQL Editor. La consulta final tiene que dar todo `true`. Con ella, la base impide citas cruzadas y cobros dobles.
 - [x] **Authentication → URL Configuration y plantilla del correo** (hecho el 8 de octubre). Es necesario para recuperar la contraseña.

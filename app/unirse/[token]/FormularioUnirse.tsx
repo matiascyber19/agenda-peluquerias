@@ -10,6 +10,8 @@ export default function FormularioUnirse({ token, nombreSugerido }: { token: str
   const [password, setPassword] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
+  // Supabase pidió confirmar el correo: la invitación se acepta sola al confirmar.
+  const [revisarCorreo, setRevisarCorreo] = useState(false)
 
   async function unirse() {
     if (password.length < 8) return setError('La contraseña debe tener al menos 8 caracteres')
@@ -26,6 +28,10 @@ export default function FormularioUnirse({ token, nombreSugerido }: { token: str
         setError(json.error ?? 'No pudimos crear tu cuenta')
         return
       }
+      if (json.confirmar) {
+        setRevisarCorreo(true)
+        return
+      }
       // Carga completa: el menú y el proxy leen la sesión nueva.
       window.location.href = '/dashboard'
     } catch {
@@ -33,6 +39,20 @@ export default function FormularioUnirse({ token, nombreSugerido }: { token: str
     } finally {
       setEnviando(false)
     }
+  }
+
+  if (revisarCorreo) {
+    return (
+      <div className="space-y-3 text-sm">
+        <p className="text-gray-700">
+          Te enviamos un correo a <span className="font-semibold">{email.trim()}</span> para confirmar tu cuenta.
+        </p>
+        <p className="text-gray-500">
+          Ábrelo y toca el enlace: quedas en el equipo y entras al panel. Si no llega en unos minutos, revisa la
+          carpeta de spam.
+        </p>
+      </div>
+    )
   }
 
   return (

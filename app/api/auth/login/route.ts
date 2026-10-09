@@ -1,4 +1,5 @@
 import { createClient } from '@/app/lib/supabase/server'
+import { completarCuentaPendiente } from '@/app/lib/cuentaPendiente'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -14,11 +15,26 @@ export async function POST(request: Request) {
     password,
   })
 
-  // 4.Si hay error, avisarle al frontend
+  // 4.Si hay error, avisarle al frontend con un mensaje en español
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 })
+    const mensaje =
+      error.code === 'email_not_confirmed'
+        ? 'Confirma tu correo antes de entrar: te enviamos un enlace al crear la cuenta.'
+        : 'Correo o contraseña incorrectos'
+    return NextResponse.json({ error: mensaje }, { status: 401 })
   }
 
-  // 5.Si todo ok, redirigir al panel
+  // 5.La cuenta tiene que pertenecer a una peluquería. Si se creó con la
+  //   confirmación de correo activada, aquí se termina el registro o la
+  //   invitación que quedó pendiente. Si no hay cómo, se cierra la sesión y
+  //   se explica el motivo (antes el panel la rechazaba y el login quedaba
+  //   cargando).
+  const cuenta = await completarCuentaPendiente(supabase)
+  if (!cuenta.lista) {
+    await supabase.auth.signOut()
+    return NextResponse.json({ error: cuenta.error }, { status: 403 })
+  }
+
+  // 6.Si todo ok, redirigir al panel
   return NextResponse.json({ ok: true })
 }

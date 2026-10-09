@@ -1,5 +1,6 @@
 import {NextResponse} from 'next/server'
 import {createClient} from '@/app/lib/supabase/server'
+import {urlDeConfirmacion} from '@/app/lib/cuentaPendiente'
 
 export async function POST(request: Request){
     try{
@@ -33,10 +34,16 @@ export async function POST(request: Request){
         const supabase = await createClient()
 
         //5.Crear usuario en Supabase Auth
+        //Si Supabase pide confirmar el correo, la peluquería se registra sola
+        //al confirmar o al iniciar sesión (app/lib/cuentaPendiente.ts)
         const {data:authData,error:signUpError} = await supabase.auth.signUp(
             {
             email,
             password,
+            options:{
+                emailRedirectTo: urlDeConfirmacion(request),
+                data:{registro_pendiente:{nombre_peluqueria,slug,nombre_usuario}},
+            },
             }
         )
         if(signUpError){
@@ -60,9 +67,10 @@ export async function POST(request: Request){
                 password,
             })
             if(signInError){
+                //202: la cuenta existe y falta confirmar el correo
                 return NextResponse.json(
-                    {error:'Tu cuenta fue creada. Confirma tu correo e inicia sesión para terminar de configurar la peluquería.'},
-                    {status:409}
+                    {confirmar:true},
+                    {status:202}
                 )
             }
         }

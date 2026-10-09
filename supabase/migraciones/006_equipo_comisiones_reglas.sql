@@ -565,6 +565,8 @@ create table if not exists public.invitaciones (
     check ((rol = 'peluquero') = (peluquero_id is not null))
 );
 alter table public.invitaciones enable row level security;
+-- Explícito: un proyecto de Supabase puede no dar permisos a las tablas nuevas.
+grant select, insert, update, delete on table public.invitaciones to authenticated;
 
 -- Pública: datos de una invitación para la página /unirse
 create or replace function public.invitacion_ver(p_token text)

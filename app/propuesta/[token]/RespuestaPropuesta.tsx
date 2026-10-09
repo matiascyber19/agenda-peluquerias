@@ -76,7 +76,7 @@ export default function RespuestaPropuesta({ token, propuesta }: { token: string
     : null
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen fondo-panel">
       <div className="mx-auto max-w-xl space-y-4 px-4 py-8">
         <header className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Tu hora</p>

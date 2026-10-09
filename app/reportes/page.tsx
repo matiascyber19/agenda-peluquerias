@@ -68,7 +68,7 @@ function Barra({ etiqueta, valor, maximo, formato }: {
         <span className="font-medium text-gray-800">{formato(valor)}</span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-        <div className="h-full rounded-full bg-slate-900" style={{ width: `${porcentaje}%` }} />
+        <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-400" style={{ width: `${porcentaje}%` }} />
       </div>
     </div>
   )
@@ -127,7 +127,7 @@ export default function ReportesPage() {
     : 0
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen fondo-panel">
       <Navbar />
 
       <div className="mx-auto max-w-5xl px-6 py-8">

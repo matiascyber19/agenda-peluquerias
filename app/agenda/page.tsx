@@ -201,7 +201,7 @@ export default function AgendaPage({
   const fechaParaModal = comoFechaInput(dentroDeLaSemana ? hoy : lunes)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen fondo-panel">
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
@@ -233,7 +233,7 @@ export default function AgendaPage({
             </button>
             <button
               onClick={() => setModalAbierto(true)}
-              className="px-4 py-2 text-sm bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium"
+              className="px-4 py-2 text-sm bg-amber-400 text-slate-950 font-semibold shadow-sm shadow-amber-500/20 hover:bg-amber-300 rounded-xl transition-colors"
             >
               + Nueva cita
             </button>
@@ -270,12 +270,12 @@ export default function AgendaPage({
               return (
                 <div
                   key={dia.toISOString()}
-                  className={`p-4 text-center border-l border-gray-100 ${esHoy ? 'bg-slate-900 text-white' : ''}`}
+                  className={`p-4 text-center border-l border-gray-100 ${esHoy ? 'bg-amber-400 text-slate-950' : ''}`}
                 >
-                  <p className={`text-xs font-medium ${esHoy ? 'text-slate-300' : 'text-gray-400'}`}>
+                  <p className={`text-xs font-medium ${esHoy ? 'text-slate-800' : 'text-gray-400'}`}>
                     {DIAS[i]}
                   </p>
-                  <p className={`text-lg font-bold mt-0.5 ${esHoy ? 'text-white' : 'text-gray-700'}`}>
+                  <p className={`text-lg font-bold mt-0.5 ${esHoy ? 'text-slate-950' : 'text-gray-700'}`}>
                     {dia.getDate()}
                   </p>
                 </div>

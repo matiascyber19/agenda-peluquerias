@@ -283,7 +283,7 @@ function DetalleCita({ cita, onCerrar, onActualizada }: Props & { cita: CitaDeta
             id="estadoCita"
             value={estado}
             onChange={(e) => setEstado(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-800"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
           >
             {ESTADOS.map((e) => (
               <option key={e.valor} value={e.valor}>{e.label}</option>

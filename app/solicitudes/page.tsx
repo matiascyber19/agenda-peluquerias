@@ -73,7 +73,7 @@ export default function SolicitudesPage() {
   const propuestas = solicitudes.filter((s) => s.estado === 'propuesta' && !respondidasIds.has(s.id))
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen fondo-panel">
       <Navbar />
 
       <div className="mx-auto max-w-3xl space-y-4 px-6 py-8">

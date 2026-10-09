@@ -9,11 +9,22 @@ export interface ServicioPublico {
   precio_clp: number
 }
 
+/** Reglas que necesita la página pública (migración 006). */
+export interface ReglasPublicas {
+  activa: boolean
+  confirmacion_automatica: boolean
+  dias_max: number
+}
+
+/** Las de antes de la migración 006, por si la base todavía no las tiene. */
+export const REGLAS_POR_DEFECTO: ReglasPublicas = { activa: true, confirmacion_automatica: false, dias_max: 30 }
+
 export interface PeluqueriaPublica {
   nombre: string
   telefono: string | null
   direccion: string | null
   comuna: string | null
+  reglas?: ReglasPublicas
   servicios: ServicioPublico[]
   peluqueros: { id: string; nombre: string }[]
 }
@@ -26,6 +37,8 @@ export interface HoraLibre {
 
 export interface ResumenReserva {
   cita_id: string
+  /** 'confirmada' si la peluquería confirma las reservas automáticamente */
+  estado?: 'solicitada' | 'confirmada'
   inicio: string
   fin: string
   peluquero: string

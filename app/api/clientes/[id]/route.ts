@@ -1,4 +1,5 @@
 import { createClient } from '@/app/lib/supabase/server'
+import { exigirRol } from '@/app/lib/sesion'
 import { FILTRO_CITAS_DE_AGENDA } from '@/app/lib/citas'
 import { diasEntreVisitas, serviciosFrecuentes } from '@/app/lib/clientes'
 import { NextResponse } from 'next/server'
@@ -243,6 +244,9 @@ export async function PATCH(
   try {
     const { id } = await params
     const supabase = await createClient()
+    // Solo dueño y recepcionista
+    const sinPermiso = await exigirRol(supabase, ['dueño', 'recepcionista'])
+    if (sinPermiso) return sinPermiso
 
     // 1. Verificar sesión
     const { data: { user } } = await supabase.auth.getUser()
@@ -327,6 +331,9 @@ export async function DELETE(
   try {
     const { id } = await params
     const supabase = await createClient()
+    // Solo dueño
+    const sinPermiso = await exigirRol(supabase, ['dueño'])
+    if (sinPermiso) return sinPermiso
 
     // 1. Verificar sesión
     const { data: { user } } = await supabase.auth.getUser()

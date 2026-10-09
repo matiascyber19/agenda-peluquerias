@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import Navbar from "../components/Navbar"
 import { useSolicitudesPendientes } from "../lib/useSolicitudesPendientes"
 import { useMantenerActualizado } from "../lib/useMantenerActualizado"
+import { esRol, puedeVer } from "../lib/roles"
 
 interface DashboardData {
   usuario: {
@@ -52,7 +53,9 @@ export default function DashboardPage() {
   // Momento en que llegaron los datos: Date.now() no puede leerse durante el render.
   const [cargadoEn, setCargadoEn] = useState(0)
   const [loading, setLoading] = useState(true)
-  const solicitudesPendientes = useSolicitudesPendientes()
+  // El rol llega con los datos: los peluqueros no responden solicitudes.
+  const rol = esRol(data?.usuario?.rol) ? data.usuario.rol : null
+  const solicitudesPendientes = useSolicitudesPendientes(rol === "dueño" || rol === "recepcionista")
 
   // Solo toca el estado cuando llega la respuesta: sirve para la primera carga
   // y para el refresco en silencio.
@@ -207,7 +210,8 @@ export default function DashboardPage() {
 
           {/* Solicitudes + Accesos rápidos + Próxima cita */}
           <div className="space-y-4">
-            {/* Reservas en línea que esperan respuesta; se actualiza sola cada minuto. */}
+            {/* Reservas en línea que esperan respuesta; se actualiza sola. Solo para quien las responde. */}
+            {rol && puedeVer(rol, "/solicitudes") && (
             <Link
               href="/solicitudes"
               className={`block rounded-2xl border p-6 shadow-sm transition-colors ${
@@ -226,11 +230,12 @@ export default function DashboardPage() {
                 {solicitudesPendientes ? "Ver y responder →" : "Nada pendiente"}
               </p>
             </Link>
+            )}
 
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
               <h2 className="font-semibold text-gray-800 mb-4">Accesos rápidos</h2>
               <div className="space-y-2">
-                {accesosRapidos.map((item) =>
+                {accesosRapidos.filter((item) => !item.href || (rol && puedeVer(rol, item.href))).map((item) =>
                   item.href ? (
                     <Link
                       key={item.label}

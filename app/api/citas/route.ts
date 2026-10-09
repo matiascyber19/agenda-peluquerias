@@ -1,6 +1,7 @@
 import { createClient } from '@/app/lib/supabase/server'
 import { type Embebido, uno } from '@/app/lib/supabase/embebido'
 import { buscarCruce, describirCruce, esErrorDeCruce, FILTRO_CITAS_DE_AGENDA, MENSAJE_CRUCE, validarParticipantes } from '@/app/lib/citas'
+import { usuarioConPeluqueria } from '@/app/lib/sesion'
 import { esFecha, inicioDelDiaEnChile, sumarDias } from '@/app/lib/fechas'
 import type { Cobro } from '@/app/lib/cobros'
 import { NextResponse } from 'next/server'
@@ -20,6 +21,8 @@ interface CitaRow {
   estado: string
   notas: string | null
   creado_en: string | null
+  propuesta_token: string | null
+  inicio_solicitado: string | null
   clientes: Embebido<{ id: string; nombre: string; telefono: string | null }>
   peluqueros: Embebido<{ id: string; nombre: string; color_agenda: string | null }>
   cita_servicios:
@@ -37,7 +40,7 @@ interface CitaRow {
 // Lista citas con filtros opcionales:
 //   ?fecha=2026-06-08        (día completo en hora de Chile)
 //   ?peluquero_id=uuid       (filtrar por peluquero)
-//   ?estado=pendiente        (filtrar por estado)
+//   ?estado=pendiente        (filtrar por estado; varios separados por coma)
 //   ?desde=2026-06-01&hasta=2026-06-30  (rango de días de Chile; acepta ISO completo)
 // Devuelve { citas: [{ id, inicio, fin, estado, notas, cliente, peluquero, servicios, cobro }] }
 // ============================================
@@ -68,6 +71,8 @@ export async function GET(request: Request) {
       estado,
       notas,
       creado_en,
+      propuesta_token,
+      inicio_solicitado,
       clientes ( id, nombre, telefono ),
       peluqueros ( id, nombre, color_agenda ),
       cita_servicios (
@@ -111,7 +116,7 @@ export async function GET(request: Request) {
   // Sin un estado explícito se devuelven solo las citas de la agenda: las
   // solicitudes en línea se consultan con ?estado=solicitada.
   if (estado) {
-    query = query.eq('estado', estado)
+    query = query.in('estado', estado.split(','))
   } else {
     query = query.or(FILTRO_CITAS_DE_AGENDA)
   }
@@ -133,6 +138,8 @@ export async function GET(request: Request) {
       estado: cita.estado,
       notas: cita.notas,
       creado_en: cita.creado_en,
+      propuesta_token: cita.propuesta_token,
+      inicio_solicitado: cita.inicio_solicitado,
       cliente: cliente
         ? { id: cliente.id, nombre: cliente.nombre, telefono: cliente.telefono }
         : null,
@@ -198,6 +205,12 @@ export async function POST(request: Request) {
     // 3. Leer body
     const body = await request.json()
     const { cliente_id, peluquero_id, inicio, servicios, notas } = body
+
+    // Un peluquero solo agenda sus propias citas (la base también lo exige)
+    const sesion = await usuarioConPeluqueria(supabase)
+    if (sesion?.rol === 'peluquero' && peluquero_id !== sesion.peluqueroId) {
+      return NextResponse.json({ error: 'Solo puedes agendar tus propias citas' }, { status: 403 })
+    }
 
     // 4. Validaciones
     if (!cliente_id || !peluquero_id || !inicio) {

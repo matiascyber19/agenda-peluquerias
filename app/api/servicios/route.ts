@@ -1,4 +1,5 @@
 import { createClient } from "@/app/lib/supabase/server"
+import { exigirRol } from "@/app/lib/sesion"
 import { NextResponse } from "next/server"
 
 //OBTENER SERVICIOS
@@ -46,6 +47,9 @@ export async function GET(){ //función HTTP GET para consultar datos
 export async function POST(request: Request){
     try{
         const supabase = await createClient() //conectar con Supabase usando sesión actual
+        // Solo dueño
+        const sinPermiso = await exigirRol(supabase, ['dueño'])
+        if (sinPermiso) return sinPermiso
 
         //Verificar usuario antes de permitir crear un servicio
         const{

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Navbar from '../components/Navbar'
 import { avisarCambioEnSolicitudes } from '../lib/useSolicitudesPendientes'
 import { useMantenerActualizado } from '../lib/useMantenerActualizado'
-import TarjetaSolicitud, { TarjetaRespondida, type Respondida, type Solicitud } from './TarjetaSolicitud'
+import TarjetaSolicitud, { TarjetaPropuesta, TarjetaRespondida, type Respondida, type Solicitud } from './TarjetaSolicitud'
 
 export default function SolicitudesPage() {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([])
@@ -20,7 +20,8 @@ export default function SolicitudesPage() {
   // Solo toca el estado cuando llega la respuesta, para poder llamarla al
   // montar y al refrescar sin provocar renders en cascada.
   const pedirSolicitudes = useCallback(() => {
-    const params = new URLSearchParams({ estado: 'solicitada', desde: new Date().toISOString() })
+    // Las que esperan respuesta de la peluquería y las horas propuestas que esperan al cliente.
+    const params = new URLSearchParams({ estado: 'solicitada,propuesta', desde: new Date().toISOString() })
     fetch(`/api/citas?${params.toString()}`)
       .then(async (res) => {
         const json = await res.json().catch(() => ({}))
@@ -62,10 +63,14 @@ export default function SolicitudesPage() {
     setRespondidas((previas) => [respondida, ...previas])
     setSolicitudes((previas) => previas.filter((s) => s.id !== respondida.solicitud.id))
     avisarCambioEnSolicitudes()
+    // Una propuesta sigue pendiente (ahora del cliente): se vuelve a pedir para
+    // que aparezca en "Esperando respuesta del cliente" al apretar "Listo".
+    if (respondida.resultado === 'propuesta') pedirSolicitudes()
   }
 
   const respondidasIds = new Set(respondidas.map((r) => r.solicitud.id))
-  const pendientes = solicitudes.filter((s) => !respondidasIds.has(s.id))
+  const pendientes = solicitudes.filter((s) => s.estado !== 'propuesta' && !respondidasIds.has(s.id))
+  const propuestas = solicitudes.filter((s) => s.estado === 'propuesta' && !respondidasIds.has(s.id))
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -96,6 +101,10 @@ export default function SolicitudesPage() {
           />
         ))}
 
+        {!cargando && pendientes.length > 0 && (
+          <p className="text-xs text-gray-400">Si nadie responde, la solicitud vence sola cuando llega su hora.</p>
+        )}
+
         {cargando ? (
           <p className="py-12 text-center text-sm text-gray-400">Cargando solicitudes...</p>
         ) : pendientes.length === 0 ? (
@@ -118,6 +127,25 @@ export default function SolicitudesPage() {
               onRespondida={alResponder}
             />
           ))
+        )}
+
+        {propuestas.length > 0 && (
+          <section className="space-y-3 pt-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+              Esperando respuesta del cliente ({propuestas.length})
+            </h2>
+            {propuestas.map((propuesta) => (
+              <TarjetaPropuesta
+                key={propuesta.id}
+                propuesta={propuesta}
+                peluqueria={peluqueria}
+                onCambio={() => {
+                  pedirSolicitudes()
+                  avisarCambioEnSolicitudes()
+                }}
+              />
+            ))}
+          </section>
         )}
       </div>
     </div>

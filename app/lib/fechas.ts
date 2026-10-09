@@ -70,3 +70,26 @@ export function inicioDelDiaEnChile(fecha: string) {
   }
   return new Date(medianocheUtc + DESFASES_HORAS[DESFASES_HORAS.length - 1] * 3_600_000)
 }
+
+/** Mes AAAA-MM al que se le suman (o restan) meses. */
+export function sumarMeses(mes: string, meses: number) {
+  const [anio, m] = mes.split('-').map(Number)
+  return new Date(Date.UTC(anio, m - 1 + meses, 1)).toISOString().slice(0, 7)
+}
+
+/** Primer y último día (AAAA-MM-DD) de un mes AAAA-MM. */
+export function diasDelMes(mes: string) {
+  const [anio, m] = mes.split('-').map(Number)
+  const ultimo = new Date(Date.UTC(anio, m, 0)).getUTCDate()
+  return { desde: `${mes}-01`, hasta: `${mes}-${String(ultimo).padStart(2, '0')}` }
+}
+
+/** "octubre de 2026" */
+export function nombreDelMes(mes: string) {
+  const [anio, m] = mes.split('-').map(Number)
+  return new Date(Date.UTC(anio, m - 1, 15)).toLocaleDateString('es-CL', {
+    timeZone: 'UTC',
+    month: 'long',
+    year: 'numeric',
+  })
+}

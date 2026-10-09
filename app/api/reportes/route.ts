@@ -1,4 +1,5 @@
 import { createClient } from "@/app/lib/supabase/server";
+import { exigirRol } from "@/app/lib/sesion";
 import { uno } from "@/app/lib/supabase/embebido";
 import { FILTRO_CITAS_DE_AGENDA } from "@/app/lib/citas";
 import { esFecha, inicioDelDiaEnChile, sumarDias } from "@/app/lib/fechas";
@@ -9,6 +10,9 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request){
     try{
         const supabase = await createClient() //conectar usando sesion actual
+        // Solo dueño
+        const sinPermiso = await exigirRol(supabase, ['dueño'])
+        if (sinPermiso) return sinPermiso
 
         //verificar usuario antes de permitir consultar reportes
         const{
@@ -130,8 +134,24 @@ export async function GET(request: Request){
             gastosPorCategoria[categoria] += gasto.monto_clp || 0
         }
 
-        //calcular diferencia entre ingresos y gastos
-        const balance = ingresosTotales - gastosTotales
+        //comisiones generadas en el periodo: se calculan solas al cobrar (migración 006)
+        const {data:comisiones, error:comisionesError} = await traerTodas<{monto_clp: number}>((primera, ultima) => supabase
+            .from('comisiones')
+            .select('monto_clp')
+            .gte('creado_en', inicioPeriodo)
+            .lt('creado_en', finPeriodo)
+            .order('id')
+            .range(primera, ultima))
+        if(comisionesError){
+            return NextResponse.json(
+                {error: `Error al consultar comisiones: ${comisionesError.message}`},
+                {status: 500}
+            )
+        }
+        const comisionesTotales = (comisiones || []).reduce((total, c) => total + (c.monto_clp || 0), 0)
+
+        //calcular diferencia entre ingresos y lo que sale (gastos y comisiones)
+        const balance = ingresosTotales - gastosTotales - comisionesTotales
         //consultar citas dentro del rango de fechas
         const {data:citas, error:citasError} = await traerTodas((primera, ultima) => supabase
             .from('citas')
@@ -219,6 +239,7 @@ export async function GET(request: Request){
             resumen:{
                 ingresosTotales,
                 gastosTotales,
+                comisionesTotales,
                 balance,
                 totalVentas: ventas?.length || 0,
                 totalGastos: gastos?.length || 0,

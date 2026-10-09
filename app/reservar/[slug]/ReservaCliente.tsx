@@ -7,12 +7,10 @@ import {
   enlaceWhatsApp,
   type HoraLibre,
   type PeluqueriaPublica,
+  REGLAS_POR_DEFECTO,
   type ResumenReserva,
 } from '@/app/lib/reserva'
 import { useMantenerActualizado } from '@/app/lib/useMantenerActualizado'
-
-// Se ofrecen hoy y los próximos 30 días, igual que la regla de la migración 003.
-const DIAS_A_MOSTRAR = 31
 
 function formatearCLP(monto: number) {
   return monto.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })
@@ -56,15 +54,18 @@ export default function ReservaCliente({ slug, peluqueria }: Props) {
   // "Hoy" solo se conoce en el navegador: el servidor renderiza sin días y
   // React los completa al hidratar, sin desajustes.
   const hoy = useSyncExternalStore(sinSuscripcion, () => fechaLocal(new Date()), () => '')
+  const reglas = peluqueria.reglas ?? REGLAS_POR_DEFECTO
+  // Se ofrecen hoy y los días que permita la peluquería en sus reglas.
+  const cantidadDias = reglas.dias_max + 1
   const dias = useMemo(() => {
     if (!hoy) return []
     const base = new Date(`${hoy}T12:00:00`)
-    return Array.from({ length: DIAS_A_MOSTRAR }, (_, i) => {
+    return Array.from({ length: cantidadDias }, (_, i) => {
       const d = new Date(base)
       d.setDate(d.getDate() + i)
       return fechaLocal(d)
     })
-  }, [hoy])
+  }, [hoy, cantidadDias])
 
   const router = useRouter()
   const [elegidosGuardados, setElegidos] = useState<string[]>([])
@@ -252,9 +253,13 @@ export default function ReservaCliente({ slug, peluqueria }: Props) {
           /* Confirmación */
           <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
             <p className="text-3xl">✅</p>
-            <h2 className="mt-2 text-xl font-bold text-gray-900">¡Solicitud enviada, {nombre.trim().split(' ')[0]}!</h2>
+            <h2 className="mt-2 text-xl font-bold text-gray-900">
+              {resumen.estado === 'confirmada' ? '¡Hora confirmada' : '¡Solicitud enviada'}, {nombre.trim().split(' ')[0]}!
+            </h2>
             <p className="mt-1 text-sm text-gray-500">
-              {peluqueria.nombre} revisará tu solicitud y te confirmará la hora.
+              {resumen.estado === 'confirmada'
+                ? `Te esperamos en ${peluqueria.nombre}.`
+                : `${peluqueria.nombre} revisará tu solicitud y te confirmará la hora.`}
             </p>
 
             <dl className="mt-5 space-y-3 rounded-xl bg-gray-50 p-4 text-sm">
@@ -285,7 +290,7 @@ export default function ReservaCliente({ slug, peluqueria }: Props) {
                 <a
                   href={enlaceWhatsApp(
                     peluqueria.telefono,
-                    `Hola, soy ${nombre.trim()}. Acabo de pedir una hora para el ${formatearDiaLargo(fecha)} a las ${horaElegida?.hora}.`
+                    `Hola, soy ${nombre.trim()}. Acabo de ${resumen.estado === 'confirmada' ? 'reservar' : 'pedir'} una hora para el ${formatearDiaLargo(fecha)} a las ${horaElegida?.hora}.`
                   )}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -303,7 +308,7 @@ export default function ReservaCliente({ slug, peluqueria }: Props) {
               </button>
             </div>
           </section>
-        ) : sinServicios || sinPeluqueros ? (
+        ) : !reglas.activa || sinServicios || sinPeluqueros ? (
           <section className="rounded-2xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-500 shadow-sm">
             Por ahora no es posible reservar en línea en {peluqueria.nombre}.
             {peluqueria.telefono && ' Escríbenos por WhatsApp para agendar tu hora.'}
@@ -528,10 +533,13 @@ export default function ReservaCliente({ slug, peluqueria }: Props) {
                 disabled={enviando}
                 className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-700 disabled:opacity-50"
               >
-                {enviando ? 'Enviando...' : 'Solicitar reserva'}
+                {enviando ? 'Enviando...' : reglas.confirmacion_automatica ? 'Reservar' : 'Solicitar reserva'}
               </button>
               <p className="mt-3 text-center text-xs text-gray-400">
-                La peluquería confirmará tu hora. No necesitas crear una cuenta.
+                {reglas.confirmacion_automatica
+                  ? 'Tu hora queda confirmada al instante.'
+                  : 'La peluquería confirmará tu hora.'}{' '}
+                No necesitas crear una cuenta.
               </p>
             </section>
           </form>

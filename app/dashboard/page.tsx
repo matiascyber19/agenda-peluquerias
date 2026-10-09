@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import Navbar from "../components/Navbar"
 import { useSolicitudesPendientes } from "../lib/useSolicitudesPendientes"
+import { useMantenerActualizado } from "../lib/useMantenerActualizado"
 
 interface DashboardData {
   usuario: {
@@ -53,7 +54,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const solicitudesPendientes = useSolicitudesPendientes()
 
-  useEffect(() => {
+  // Solo toca el estado cuando llega la respuesta: sirve para la primera carga
+  // y para el refresco en silencio.
+  const pedirDashboard = useCallback(() => {
     fetch("/api/dashboard")
       .then((res) => {
         // La sesión pudo expirar con la página abierta: el proxy solo protege la navegación.
@@ -72,6 +75,13 @@ export default function DashboardPage() {
       .catch((err) => console.error("Error cargando dashboard:", err))
       .finally(() => setLoading(false))
   }, [router])
+
+  useEffect(() => {
+    pedirDashboard()
+  }, [pedirDashboard])
+
+  // Citas e ingresos de hoy al día: al volver a la pestaña y cada 30 segundos.
+  useMantenerActualizado(pedirDashboard, 30_000)
 
   if (loading) {
     return (

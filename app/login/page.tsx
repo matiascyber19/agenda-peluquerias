@@ -1,42 +1,64 @@
 'use client'
 
 import { use, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
+
+// Avisos que llegan en la URL:
+//   ?acceso=sin-cuenta        proxy.ts: cuenta sin peluquería o desactivada
+//   ?confirmado=1             /auth/confirmar: el correo quedó confirmado
+//   ?confirmacion=fallida     /auth/confirmar: el enlace venció o no sirvió
+//   ?error=...                /auth/confirmar: no se pudo terminar la cuenta
+function avisoInicial(params: Record<string, string | string[] | undefined>) {
+  if (typeof params.error === 'string' && params.error) return { tipo: 'error', texto: params.error }
+  if (params.acceso === 'sin-cuenta') {
+    return { tipo: 'error', texto: 'Tu cuenta no tiene acceso a ninguna peluquería o fue desactivada. Habla con el dueño.' }
+  }
+  if (params.confirmacion === 'fallida') {
+    return { tipo: 'error', texto: 'El enlace de confirmación venció o no es válido. Intenta iniciar sesión.' }
+  }
+  if (params.confirmado === '1') return { tipo: 'ok', texto: 'Tu correo quedó confirmado. Inicia sesión para entrar.' }
+  return null
+}
 
 export default function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ acceso?: string | string[] }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const router = useRouter()
-  // proxy.ts manda aquí con ?acceso=sin-cuenta a una cuenta desactivada o sin peluquería.
-  const { acceso } = use(searchParams)
+  const inicial = avisoInicial(use(searchParams))
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState(
-    acceso === 'sin-cuenta' ? 'Tu cuenta no tiene acceso a ninguna peluquería o fue desactivada. Habla con el dueño.' : ''
-  )
+  const [error, setError] = useState(inicial?.tipo === 'error' ? inicial.texto : '')
+  const [aviso, setAviso] = useState(inicial?.tipo === 'ok' ? inicial.texto : '')
   const [loading, setLoading] = useState(false)
 
   async function handleLogin() {
     setLoading(true)
     setError('')
+    setAviso('')
 
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    })
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
 
-    if (!res.ok) {
-      setError('Correo o contraseña incorrectos')
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        setError(json.error ?? 'Correo o contraseña incorrectos')
+        setLoading(false)
+        return
+      }
+
+      // Carga completa: el proxy y el menú leen la sesión nueva, y si algo
+      // falla la página no queda a medio navegar con el botón cargando.
+      window.location.assign('/dashboard')
+    } catch {
+      setError('No pudimos conectar con el servidor. Revisa tu conexión.')
       setLoading(false)
-      return
     }
-
-    router.push('/dashboard')
   }
 
   return (
@@ -93,6 +115,7 @@ export default function LoginPage({
               />
             </div>
 
+            {aviso && <p className="text-green-600 text-sm">{aviso}</p>}
             {error && <p className="text-red-500 text-sm">{error}</p>}
 
             <button

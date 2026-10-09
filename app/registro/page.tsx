@@ -29,6 +29,8 @@ export default function RegistroPage() {
 
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  // Supabase pidió confirmar el correo: la peluquería se registra sola al confirmar.
+  const [revisarCorreo, setRevisarCorreo] = useState(false)
 
   function handleNombrePeluqueria(valor: string) {
     setNombrePeluqueria(valor)
@@ -80,6 +82,12 @@ export default function RegistroPage() {
         return
       }
 
+      if (data.confirmar) {
+        setRevisarCorreo(true)
+        setLoading(false)
+        return
+      }
+
       router.push('/dashboard')
     } catch {
       setError('No pudimos conectar con el servidor. Revisa tu conexión.')
@@ -110,6 +118,17 @@ export default function RegistroPage() {
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           <h2 className="text-xl font-semibold text-gray-800 mb-6">Registra tu peluquería</h2>
 
+          {revisarCorreo ? (
+            <div className="space-y-3 text-sm">
+              <p className="text-gray-700">
+                Te enviamos un correo a <span className="font-semibold">{email.trim()}</span> para confirmar tu cuenta.
+              </p>
+              <p className="text-gray-500">
+                Ábrelo y toca el enlace: tu peluquería queda creada y entras al panel. Si no llega en unos minutos,
+                revisa la carpeta de spam.
+              </p>
+            </div>
+          ) : (
           <form
             className="space-y-5"
             onSubmit={(e) => {
@@ -210,6 +229,7 @@ export default function RegistroPage() {
               {loading ? 'Creando cuenta...' : 'Crear cuenta gratis →'}
             </button>
           </form>
+          )}
 
           {/* Divider */}
           <div className="flex items-center gap-3 my-6">

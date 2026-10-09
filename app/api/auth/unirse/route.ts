@@ -1,4 +1,5 @@
 import { createClient } from '@/app/lib/supabase/server'
+import { urlDeConfirmacion } from '@/app/lib/cuentaPendiente'
 import { NextResponse } from 'next/server'
 
 // ============================================
@@ -7,6 +8,10 @@ import { NextResponse } from 'next/server'
 // Crea la cuenta de quien fue invitado al equipo y acepta la invitación
 // (invitacion_aceptar, migración 006). Si el correo ya tiene una cuenta sin
 // peluquería (por ejemplo, un intento anterior), entra con ella.
+// Con la confirmación de correo activada en Supabase no hay sesión hasta
+// confirmar: la invitación queda anotada en la cuenta y se acepta sola al
+// confirmar o al iniciar sesión (app/lib/cuentaPendiente.ts). Responde 202
+// con { confirmar: true }.
 // ============================================
 export async function POST(request: Request) {
   try {
@@ -30,7 +35,14 @@ export async function POST(request: Request) {
     const supabase = await createClient()
 
     // 1. Crear la cuenta, o entrar si el correo ya tiene una
-    const { data, error } = await supabase.auth.signUp({ email: correo, password })
+    const { data, error } = await supabase.auth.signUp({
+      email: correo,
+      password,
+      options: {
+        emailRedirectTo: urlDeConfirmacion(request),
+        data: { invitacion_pendiente: { token, nombre: nombreLimpio } },
+      },
+    })
     if (error) {
       if (error.code !== 'user_already_exists') {
         const mensaje = error.code === 'weak_password' ? 'Esa contraseña es muy débil. Prueba con una más larga.' : error.message
@@ -44,11 +56,15 @@ export async function POST(request: Request) {
         )
       }
     } else if (!data.session) {
-      // Con la confirmación de correo activada, signUp no abre sesión.
+      // Con la confirmación de correo activada, signUp no abre sesión. Si el
+      // correo ya estaba confirmado (otro intento), se entra con la contraseña.
       const { error: entrarError } = await supabase.auth.signInWithPassword({ email: correo, password })
+      if (entrarError?.code === 'email_not_confirmed') {
+        return NextResponse.json({ confirmar: true }, { status: 202 })
+      }
       if (entrarError) {
         return NextResponse.json(
-          { error: 'Tu cuenta fue creada. Confirma tu correo y vuelve a abrir el enlace de invitación.' },
+          { error: 'Ese correo ya tiene una cuenta y la contraseña no coincide. Usa tu contraseña de siempre.' },
           { status: 409 }
         )
       }

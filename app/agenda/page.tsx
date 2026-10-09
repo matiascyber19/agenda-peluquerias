@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar'
 import ModalNuevaCita from '../components/ModalNuevaCita'
 import ModalDetalleCita from '../components/ModalDetalleCita'
 import type { Cobro } from '../lib/cobros'
+import { useMantenerActualizado } from '../lib/useMantenerActualizado'
 
 interface Cita {
   id: string
@@ -69,6 +70,12 @@ function hhmm(fecha: Date) {
   return fecha.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
+/** Parámetros de /api/citas para la semana de `lunes`: hasta el último milisegundo del domingo. */
+function paramsSemana(lunes: Date) {
+  const hasta = new Date(sumarDias(lunes, 7).getTime() - 1)
+  return new URLSearchParams({ desde: lunes.toISOString(), hasta: hasta.toISOString() })
+}
+
 function comoFechaInput(fecha: Date) {
   const mes = String(fecha.getMonth() + 1).padStart(2, '0')
   const dia = String(fecha.getDate()).padStart(2, '0')
@@ -129,14 +136,7 @@ export default function AgendaPage({
   useEffect(() => {
     const controller = new AbortController()
 
-    // Rango cerrado: lunes 00:00 hasta el último milisegundo del domingo.
-    const hasta = new Date(sumarDias(lunes, 7).getTime() - 1)
-    const params = new URLSearchParams({
-      desde: lunes.toISOString(),
-      hasta: hasta.toISOString(),
-    })
-
-    fetch(`/api/citas?${params.toString()}`, { signal: controller.signal })
+    fetch(`/api/citas?${paramsSemana(lunes).toString()}`, { signal: controller.signal })
       .then(async (res) => {
         const json = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(json.error ?? 'No se pudieron cargar las citas')
@@ -150,6 +150,23 @@ export default function AgendaPage({
 
     return () => controller.abort()
   }, [consulta, lunes])
+
+  // Citas nuevas (por ejemplo, una solicitud confirmada en otro lado) aparecen
+  // al volver a la pestaña y cada 30 segundos. Es en silencio: reemplaza las
+  // citas de la misma consulta sin pasar por "Cargando citas...".
+  function refrescarCitas() {
+    const consultaActual = consulta
+    fetch(`/api/citas?${paramsSemana(lunes).toString()}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (!json) return
+        setRespuesta((previa) =>
+          previa.consulta === consultaActual ? { consulta: consultaActual, citas: json.citas ?? [], error: '' } : previa
+        )
+      })
+      .catch(() => {})
+  }
+  useMantenerActualizado(refrescarCitas, 30_000)
 
   // Leyenda de peluqueros construida desde los datos, no escrita a mano
   const peluqueros = useMemo(() => {

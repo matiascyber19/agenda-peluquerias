@@ -93,3 +93,40 @@ export function nombreDelMes(mes: string) {
     year: 'numeric',
   })
 }
+
+/** Días de calendario (en Chile) entre dos fechas AAAA-MM-DD. */
+function diasEntre(desde: string, hasta: string) {
+  return Math.round((Date.parse(hasta) - Date.parse(desde)) / 86_400_000)
+}
+
+/**
+ * Cuándo es una cita vista desde `ahora`, para leerla de un vistazo:
+ *   dia:   "Hoy", "Mañana" o "jueves 16 de octubre"
+ *   falta: "Ahora", "En 25 min", "En 2 h 15 min", "Mañana" o "En 7 días"
+ * Con menos de 24 horas por delante, `falta` va en horas; si no, en días de
+ * calendario de Chile.
+ */
+export function cuandoEs(inicio: string | Date, ahora: Date) {
+  const instante = new Date(inicio)
+  const dias = diasEntre(fechaEnChile(ahora), fechaEnChile(instante))
+  const minutos = Math.round((instante.getTime() - ahora.getTime()) / 60_000)
+
+  const dia =
+    dias <= 0
+      ? 'Hoy'
+      : dias === 1
+        ? 'Mañana'
+        : instante
+            .toLocaleDateString('es-CL', { timeZone: ZONA, weekday: 'long', day: 'numeric', month: 'long' })
+            .replace(',', '')
+
+  let falta: string
+  if (minutos <= 0) falta = 'Ahora'
+  else if (minutos < 60) falta = `En ${minutos} min`
+  else if (minutos < 24 * 60) {
+    const h = Math.floor(minutos / 60)
+    const m = minutos % 60
+    falta = m ? `En ${h} h ${m} min` : `En ${h} h`
+  } else falta = dias === 1 ? 'Mañana' : `En ${dias} días`
+  return { dia, falta }
+}

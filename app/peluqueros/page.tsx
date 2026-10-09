@@ -101,7 +101,7 @@ export default function PeluquerosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen fondo-panel">
       <Navbar />
 
       <div className="mx-auto max-w-5xl px-6 py-8">
@@ -120,7 +120,7 @@ export default function PeluquerosPage() {
               type="button"
               onClick={() => invitar()}
               disabled={invitando === 'nuevo'}
-              className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+              className="rounded-xl px-4 py-2.5 text-sm transition-colors disabled:opacity-50 bg-amber-400 text-slate-950 font-semibold shadow-sm shadow-amber-500/20 hover:bg-amber-300"
             >
               {invitando === 'nuevo' ? 'Creando enlace...' : '+ Invitar peluquero'}
             </button>
@@ -214,7 +214,7 @@ export default function PeluquerosPage() {
                     <button
                       onClick={() => invitar(peluquero)}
                       disabled={invitando === peluquero.id}
-                      className="text-sm font-medium text-green-700 transition-colors hover:text-green-800 disabled:opacity-50"
+                      className="text-sm font-medium text-amber-700 transition-colors hover:text-amber-800 disabled:opacity-50"
                     >
                       {invitando === peluquero.id ? 'Creando enlace...' : 'Enviarle acceso'}
                     </button>

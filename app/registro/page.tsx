@@ -168,7 +168,7 @@ export default function RegistroPage() {
               <label htmlFor="slug" className="block text-sm font-medium text-gray-700 mb-1.5">
                 URL de tu agenda
               </label>
-              <div className="flex items-center border border-gray-200 bg-gray-50 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-slate-800 transition-all">
+              <div className="flex items-center border border-gray-200 bg-gray-50 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-amber-400 transition-all">
                 <span className="px-4 py-3 text-sm text-gray-400 bg-gray-100 border-r border-gray-200 whitespace-nowrap">
                   …/reservar/
                 </span>
@@ -236,7 +236,7 @@ export default function RegistroPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-700 active:scale-95 transition-all mt-2 disabled:opacity-50"
+              className="w-full bg-amber-400 text-slate-950 rounded-xl py-3 text-sm font-semibold shadow-sm shadow-amber-500/20 hover:bg-amber-300 active:scale-95 transition-all mt-2 disabled:opacity-50"
             >
               {loading ? 'Creando cuenta...' : 'Crear cuenta gratis →'}
             </button>

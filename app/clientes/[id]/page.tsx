@@ -164,7 +164,7 @@ export default function FichaClientePage({ params }: { params: Promise<{ id: str
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen fondo-panel">
         <Navbar />
         <p className="py-20 text-center text-sm text-gray-400">Cargando ficha...</p>
       </div>
@@ -173,7 +173,7 @@ export default function FichaClientePage({ params }: { params: Promise<{ id: str
 
   if (error || !ficha) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen fondo-panel">
         <Navbar />
         <div className="mx-auto max-w-3xl px-6 py-20 text-center">
           <p className="text-sm text-red-500">{error || 'Cliente no encontrado'}</p>
@@ -189,7 +189,7 @@ export default function FichaClientePage({ params }: { params: Promise<{ id: str
   const frecuencia = describirFrecuencia(estadisticas.cadaCuantosDias)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen fondo-panel">
       <Navbar />
 
       <div className="mx-auto max-w-5xl px-6 py-8">

@@ -16,7 +16,7 @@ interface PeluqueroHorario {
 type Semana = Record<number, { inicio: string; fin: string }[]>
 
 const INPUT_HORA =
-  'rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-slate-800 focus:bg-white'
+  'rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white'
 
 function aSemana(franjas: Franja[]): Semana {
   const semana: Semana = Object.fromEntries(DIAS_SEMANA.map(({ dia }) => [dia, []]))

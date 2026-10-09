@@ -190,7 +190,7 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/95 text-white backdrop-blur">
         <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <button
@@ -200,21 +200,23 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
               aria-label="Abrir menú"
               aria-expanded={abierto}
               aria-controls="menu-principal"
-              className="relative rounded-xl p-2 text-gray-700 transition-colors hover:bg-gray-100"
+              className="relative rounded-xl p-2 text-slate-200 transition-colors hover:bg-white/10"
             >
               <Icono nombre="menu" className="h-6 w-6" />
               {pendientes > 0 && (
-                <span aria-hidden className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-blue-600" />
+                <span aria-hidden className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-slate-950 bg-amber-400" />
               )}
             </button>
             <Link href="/dashboard" className="flex shrink-0 items-center gap-2">
-              <Image src="/logo_agenda_peluqueria.png" alt="Agenda Peluquerías" width={28} height={28} className="h-7 w-7 object-contain" />
-              <span className="hidden font-semibold text-gray-800 sm:inline">Agenda Peluquerías</span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">
+                <Image src="/icono_agenda_blanco.png" alt="Agenda Peluquerías" width={22} height={22} className="h-[22px] w-[22px]" />
+              </span>
+              <span className="hidden font-semibold tracking-tight text-white sm:inline">Agenda Peluquerías</span>
             </Link>
             {actual && (
-              <span className="flex min-w-0 items-center gap-2 text-sm text-gray-500">
-                <span aria-hidden className="text-gray-300">/</span>
-                <span className="truncate font-medium text-gray-700">{actual.label}</span>
+              <span className="flex min-w-0 items-center gap-2 text-sm text-slate-400">
+                <span aria-hidden className="text-slate-600">/</span>
+                <span className="truncate font-medium text-slate-200">{actual.label}</span>
               </span>
             )}
           </div>
@@ -223,14 +225,14 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
             {pendientes > 0 && (
               <Link
                 href="/solicitudes"
-                className="flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100"
+                className="flex items-center gap-1.5 rounded-full bg-amber-400 px-3 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-amber-300"
               >
                 <Icono nombre="campana" className="h-4 w-4" />
                 {pendientes}
                 <span className="hidden sm:inline">por confirmar</span>
               </Link>
             )}
-            {nombrePeluqueria && <span className="hidden text-sm text-gray-500 md:inline">{nombrePeluqueria}</span>}
+            {nombrePeluqueria && <span className="hidden text-sm text-slate-400 md:inline">{nombrePeluqueria}</span>}
           </div>
         </div>
       </header>
@@ -239,7 +241,7 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
       <div
         aria-hidden
         onClick={cerrar}
-        className={`fixed inset-0 z-40 bg-slate-900/40 transition-opacity duration-200 ${
+        className={`fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[2px] transition-opacity duration-200 ${
           abierto ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
       />
@@ -250,21 +252,23 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
         aria-modal="true"
         aria-label="Menú"
         inert={!abierto}
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-white shadow-2xl transition-transform duration-200 ease-out ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-slate-950 text-slate-200 shadow-2xl transition-transform duration-200 ease-out ${
           abierto ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-          <span className="flex items-center gap-2">
-            <Image src="/logo_agenda_peluqueria.png" alt="" width={28} height={28} className="h-7 w-7 object-contain" />
-            <span className="font-semibold text-gray-800">Agenda Peluquerías</span>
+        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+          <span className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">
+              <Image src="/icono_agenda_blanco.png" alt="" width={22} height={22} className="h-[22px] w-[22px]" />
+            </span>
+            <span className="font-semibold tracking-tight text-white">Agenda Peluquerías</span>
           </span>
           <button
             ref={botonCerrar}
             type="button"
             onClick={cerrar}
             aria-label="Cerrar menú"
-            className="rounded-xl p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
+            className="rounded-xl p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
           >
             <Icono nombre="cerrar" />
           </button>
@@ -276,7 +280,7 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
             if (delGrupo.length === 0) return null
             return (
               <div key={grupo} className="mb-5">
-                <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">{grupo}</p>
+                <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{grupo}</p>
                 <ul className="space-y-0.5">
                   {delGrupo.map((p) => {
                     const activo = actual?.href === p.href
@@ -287,15 +291,19 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
                           onClick={() => setAbierto(false)}
                           aria-current={activo ? 'page' : undefined}
                           className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                            activo ? 'bg-slate-900 text-white' : 'text-gray-700 hover:bg-gray-100'
+                            activo
+                              ? 'bg-gradient-to-r from-amber-400 to-orange-300 text-slate-950 shadow-lg shadow-amber-500/10'
+                              : 'text-slate-300 hover:bg-white/5 hover:text-white'
                           }`}
                         >
-                          <Icono nombre={p.href} className={activo ? 'text-white' : 'text-gray-400'} />
+                          <Icono nombre={p.href} className={activo ? 'text-slate-950' : 'text-slate-500'} />
                           <span className="flex-1">{p.label}</span>
                           {p.href === '/solicitudes' && pendientes > 0 && (
                             <span
                               aria-label={`${pendientes} por confirmar`}
-                              className="rounded-full bg-blue-600 px-2 text-xs font-semibold leading-5 text-white"
+                              className={`rounded-full px-2 text-xs font-semibold leading-5 ${
+                                activo ? 'bg-slate-950 text-amber-300' : 'bg-amber-400 text-slate-950'
+                              }`}
                             >
                               {pendientes}
                             </span>
@@ -310,15 +318,15 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
           })}
         </nav>
 
-        <div className="border-t border-gray-100 px-4 py-4">
+        <div className="border-t border-white/10 px-4 py-4">
           {me?.nombre && (
             <div className="mb-3 flex items-center gap-3 px-1">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-rose-400 text-sm font-semibold text-slate-950">
                 {iniciales(me.nombre)}
               </span>
               <span className="min-w-0">
-                <span className="block truncate text-sm font-medium text-gray-900">{me.nombre}</span>
-                <span className="block truncate text-xs text-gray-500">
+                <span className="block truncate text-sm font-medium text-white">{me.nombre}</span>
+                <span className="block truncate text-xs text-slate-400">
                   {rol ? NOMBRE_ROL[rol] : ''}
                   {nombrePeluqueria && ` · ${nombrePeluqueria}`}
                 </span>
@@ -329,7 +337,7 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
             type="button"
             onClick={handleLogout}
             disabled={saliendo}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-rose-300 transition-colors hover:bg-rose-500/10 hover:text-rose-200 disabled:opacity-50"
           >
             <Icono nombre="salir" />
             {saliendo ? 'Saliendo...' : 'Cerrar sesión'}

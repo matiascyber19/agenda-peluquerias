@@ -12,15 +12,20 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* La app no tiene tema oscuro: con el sistema en modo oscuro, el texto sin
+   color propio quedaba claro sobre las tarjetas blancas. */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Fondo de las páginas del panel: gris muy claro con luces cálidas arriba,
+   como la portada del login. */
+@utility fondo-panel {
+  background-color: #f6f6f8;
+  background-image:
+    radial-gradient(60rem 24rem at 0% -8rem, rgb(251 191 36 / 0.13), transparent 70%),
+    radial-gradient(50rem 22rem at 100% -8rem, rgb(244 63 94 / 0.08), transparent 70%);
+  background-repeat: no-repeat;
 }

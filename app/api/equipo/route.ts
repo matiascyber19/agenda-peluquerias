@@ -50,6 +50,7 @@ export async function GET() {
       id: i.id,
       token: i.token,
       rol: i.rol,
+      peluquero_id: i.peluquero_id,
       peluquero: nombreFicha(i.peluquero_id),
       vence_en: i.vence_en,
     })),

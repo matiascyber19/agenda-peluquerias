@@ -27,7 +27,7 @@ function Interruptor({ id, activo, onCambiar, titulo, detalle }: {
       <input id={id} type="checkbox" checked={activo} onChange={(e) => onCambiar(e.target.checked)} className="peer sr-only" />
       <span
         aria-hidden
-        className="relative mt-0.5 h-6 w-11 shrink-0 rounded-full bg-gray-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform peer-checked:bg-slate-900 peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-slate-800"
+        className="relative mt-0.5 h-6 w-11 shrink-0 rounded-full bg-gray-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform peer-checked:bg-amber-400 peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-amber-400"
       />
     </label>
   )

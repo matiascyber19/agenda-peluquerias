@@ -81,7 +81,7 @@ export default function ServiciosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen fondo-panel">
       <Navbar />
 
       <div className="mx-auto max-w-5xl px-6 py-8">
@@ -94,7 +94,7 @@ export default function ServiciosPage() {
           </div>
           <button
             onClick={abrirNuevo}
-            className="rounded-xl bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700"
+            className="rounded-xl px-4 py-2 text-sm transition-colors bg-amber-400 text-slate-950 font-semibold shadow-sm shadow-amber-500/20 hover:bg-amber-300"
           >
             + Nuevo servicio
           </button>

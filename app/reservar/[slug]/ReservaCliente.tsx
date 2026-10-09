@@ -230,7 +230,7 @@ export default function ReservaCliente({ slug, peluqueria }: Props) {
   const sinServicios = peluqueria.servicios.length === 0
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen fondo-panel">
       <div className="mx-auto max-w-xl space-y-4 px-4 py-8">
         {/* Encabezado de la peluquería */}
         <header className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">

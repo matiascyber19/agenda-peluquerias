@@ -115,7 +115,7 @@ export default function ClientesPage() {
   }, [clientes, filtro])
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen fondo-panel">
       <Navbar />
 
       <div className="max-w-6xl mx-auto px-6 py-8">
@@ -144,13 +144,13 @@ export default function ClientesPage() {
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar por nombre o teléfono..."
-              className="w-full border border-gray-200 bg-white rounded-xl pl-9 pr-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-slate-800 transition-all"
+              className="w-full border border-gray-200 bg-white rounded-xl pl-9 pr-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
             />
           </div>
           <select
             value={filtro}
             onChange={(e) => setFiltro(e.target.value)}
-            className="border border-gray-200 bg-white rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-slate-800 transition-all"
+            className="border border-gray-200 bg-white rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
           >
             {FILTROS.map((f) => (
               <option key={f.valor} value={f.valor}>{f.label}</option>

@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   const cuenta = await completarCuentaPendiente(supabase)
   if (!cuenta.lista) {
     await supabase.auth.signOut()
-    return NextResponse.json({ error: cuenta.error }, { status: 403 })
+    return NextResponse.json({ error: cuenta.error, sinPeluqueria: cuenta.sinPeluqueria ?? false }, { status: 403 })
   }
 
   // 6.Si todo ok, redirigir al panel

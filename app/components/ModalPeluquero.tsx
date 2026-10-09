@@ -12,6 +12,8 @@ export interface Peluquero {
   porcentaje_comision: number
   color_agenda: string
   activo: boolean
+  /** Cuenta vinculada (entró con una invitación); null si no usa la app. */
+  usuario_id?: string | null
 }
 
 interface Props {

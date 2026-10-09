@@ -12,7 +12,7 @@ type Supabase = Awaited<ReturnType<typeof createClient>>
 
 const DESACTIVADA = 'Tu cuenta fue desactivada. Habla con el dueño de la peluquería.'
 const SIN_PELUQUERIA =
-  'Tu cuenta no pertenece a ninguna peluquería. Si te invitaron, abre de nuevo el enlace de invitación.'
+  'Tu cuenta no pertenece a ninguna peluquería. Si te invitaron, abre de nuevo el enlace de invitación; si es tu negocio, créalo con este mismo correo.'
 
 /** Pasa el error de la base a un mensaje para la persona. */
 function mensajeDe(error: { code?: string; message: string }, porDefecto: string) {
@@ -25,9 +25,12 @@ function mensajeDe(error: { code?: string; message: string }, porDefecto: string
 /**
  * Deja lista la cuenta con sesión: si todavía no pertenece a una peluquería,
  * termina el registro o la invitación pendiente. Devuelve { lista: true } o
- * { lista: false, error } con un mensaje para mostrar.
+ * { lista: false, error } con un mensaje para mostrar. `sinPeluqueria` indica
+ * que no había nada pendiente: la persona puede crear su peluquería.
  */
-export async function completarCuentaPendiente(supabase: Supabase): Promise<{ lista: boolean; error?: string }> {
+export async function completarCuentaPendiente(
+  supabase: Supabase
+): Promise<{ lista: boolean; error?: string; sinPeluqueria?: boolean }> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { lista: false, error: 'No autenticado' }
 
@@ -62,7 +65,7 @@ export async function completarCuentaPendiente(supabase: Supabase): Promise<{ li
     return { lista: true }
   }
 
-  return { lista: false, error: SIN_PELUQUERIA }
+  return { lista: false, error: SIN_PELUQUERIA, sinPeluqueria: true }
 }
 
 /** Dónde vuelve el enlace de confirmación de correo que manda Supabase. */

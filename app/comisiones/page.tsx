@@ -111,7 +111,7 @@ export default function ComisionesPage() {
   const visibles = respuesta.peluqueros.filter((p) => p.activo || p.comision > 0 || p.pendiente > 0)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen fondo-panel">
       <Navbar />
 
       <div className="mx-auto max-w-5xl space-y-6 px-6 py-8">

@@ -1,9 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
+import Portada, { Resaltado } from '../components/Portada'
+import { INPUT_ACCESO } from '../components/TarjetaAcceso'
+
+const PASOS = [
+  { titulo: 'Registra tu peluquería', texto: 'Con tu nombre, correo y la dirección de tu página de reservas.' },
+  { titulo: 'Agrega servicios y horarios', texto: 'Precios, duración y los días que atiende cada peluquero.' },
+  { titulo: 'Comparte tu enlace', texto: 'Tus clientes reservan solos y a tu equipo lo invitas con un enlace.' },
+]
 
 function generarSlug(texto: string) {
   return texto
@@ -18,8 +24,6 @@ function generarSlug(texto: string) {
 }
 
 export default function RegistroPage() {
-  const router = useRouter()
-
   const [nombrePeluqueria, setNombrePeluqueria] = useState('')
   const [slug, setSlug] = useState('')
   const [slugEditado, setSlugEditado] = useState(false)
@@ -88,35 +92,43 @@ export default function RegistroPage() {
         return
       }
 
-      router.push('/dashboard')
+      // Carga completa: el proxy y el menú leen la sesión nueva.
+      window.location.assign('/dashboard')
     } catch {
       setError('No pudimos conectar con el servidor. Revisa tu conexión.')
       setLoading(false)
     }
   }
 
-  const inputClass =
-    'w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-800 focus:bg-white transition-all'
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
-      <div className="w-full max-w-lg">
-
-        {/* Logo */}
-        <div className="text-center mb-6">
-          <Image
-            src="/logo_agenda_peluqueria.png"
-            alt="Agenda Peluquerías"
-            width={144}
-            height={144}
-            className="w-36 h-36 object-contain mx-auto filter invert"
-          />
-          <p className="text-slate-400 text-sm mt-1">Crea tu cuenta gratis</p>
-        </div>
-
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-6">Registra tu peluquería</h2>
+    <Portada
+      titular={
+        <>
+          Tu peluquería lista <Resaltado>en 2 minutos</Resaltado>
+        </>
+      }
+      texto="Crea tu cuenta gratis y empieza a recibir reservas hoy. No hay nada que instalar: funciona en el computador y en el celular."
+      detalle={
+        <ol className="space-y-3">
+          {PASOS.map((paso, i) => (
+            <li key={paso.titulo} className="flex gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-400 text-sm font-bold text-slate-950">
+                {i + 1}
+              </span>
+              <span>
+                <span className="block font-semibold text-white">{paso.titulo}</span>
+                <span className="mt-0.5 block text-sm text-slate-400">{paso.texto}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      }
+    >
+        <div className="rounded-2xl bg-white p-8 text-gray-900 shadow-2xl">
+          <h2 className="text-xl font-semibold text-gray-800">Registra tu peluquería</h2>
+          <p className="mt-1 mb-6 text-sm text-gray-500">
+            ¿Ya creaste una cuenta antes y no quedó en ninguna peluquería? Usa el mismo correo y contraseña.
+          </p>
 
           {revisarCorreo ? (
             <div className="space-y-3 text-sm">
@@ -147,7 +159,7 @@ export default function RegistroPage() {
                 placeholder="Ej: Barbería Juan"
                 value={nombrePeluqueria}
                 onChange={(e) => handleNombrePeluqueria(e.target.value)}
-                className={inputClass}
+                className={INPUT_ACCESO}
               />
             </div>
 
@@ -158,7 +170,7 @@ export default function RegistroPage() {
               </label>
               <div className="flex items-center border border-gray-200 bg-gray-50 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-slate-800 transition-all">
                 <span className="px-4 py-3 text-sm text-gray-400 bg-gray-100 border-r border-gray-200 whitespace-nowrap">
-                  agendapeluquerias.cl/
+                  …/reservar/
                 </span>
                 <input
                   id="slug"
@@ -169,7 +181,7 @@ export default function RegistroPage() {
                   className="flex-1 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 bg-transparent focus:outline-none"
                 />
               </div>
-              <p className="text-xs text-gray-400 mt-1">Solo letras minúsculas, números y guiones</p>
+              <p className="text-xs text-gray-400 mt-1">Tu página de reservas. Solo letras minúsculas, números y guiones.</p>
             </div>
 
             {/* Nombre dueño */}
@@ -183,7 +195,7 @@ export default function RegistroPage() {
                 placeholder="Juan González"
                 value={nombreDueno}
                 onChange={(e) => setNombreDueno(e.target.value)}
-                className={inputClass}
+                className={INPUT_ACCESO}
               />
             </div>
 
@@ -199,7 +211,7 @@ export default function RegistroPage() {
                 placeholder="tu@correo.cl"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className={inputClass}
+                className={INPUT_ACCESO}
               />
             </div>
 
@@ -215,7 +227,7 @@ export default function RegistroPage() {
                 placeholder="Mínimo 8 caracteres"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={inputClass}
+                className={INPUT_ACCESO}
               />
             </div>
 
@@ -246,11 +258,6 @@ export default function RegistroPage() {
             </Link>
           </p>
         </div>
-
-        <p className="text-center text-xs text-slate-500 mt-6">
-          © 2026 Agenda Peluquerías · Hecho en Chile 🇨🇱
-        </p>
-      </div>
-    </div>
+    </Portada>
   )
 }

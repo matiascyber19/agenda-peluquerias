@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
+import { useCallback, useEffect, useState } from 'react'
 import Navbar from '../components/Navbar'
-import { BOTON_PRIMARIO, BOTON_SECUNDARIO, INPUT, LABEL } from '../components/estilos'
+import { BOTON_PRIMARIO, INPUT, LABEL } from '../components/estilos'
+import { crearInvitacion, ListaInvitaciones, ModalInvitacionCreada, type Invitacion } from '../components/Invitaciones'
 import { esRol, NOMBRE_ROL } from '../lib/roles'
+import { useMantenerActualizado } from '../lib/useMantenerActualizado'
 
 interface Cuenta {
   id: string
@@ -14,14 +15,6 @@ interface Cuenta {
   activo: boolean
   peluquero: string | null
   esYo: boolean
-}
-
-interface Invitacion {
-  id: string
-  token: string
-  rol: string
-  peluquero: string | null
-  vence_en: string
 }
 
 interface Equipo {
@@ -36,90 +29,56 @@ const PERMISOS = [
   { rol: 'Peluquero', puede: 'Solo sus propias citas (agendar, atender y cobrar) y sus comisiones.' },
 ]
 
-function enlaceInvitacion(token: string) {
-  return `${window.location.origin}/unirse/${token}`
-}
-
-function formatearVence(iso: string) {
-  return new Date(iso).toLocaleDateString('es-CL', { timeZone: 'America/Santiago', day: 'numeric', month: 'long' })
-}
+// Cada cuánto se revisa si alguien aceptó una invitación, con la página a la vista.
+const REFRESCO_MS = 10_000
 
 export default function EquipoPage() {
-  const [recarga, setRecarga] = useState(0)
-  const [respuesta, setRespuesta] = useState<{ recarga: number; equipo: Equipo | null; error: string }>({
-    recarga: -1,
-    equipo: null,
-    error: '',
-  })
-  const cargando = respuesta.recarga !== recarga
-  const equipo = respuesta.equipo
+  const [equipo, setEquipo] = useState<Equipo | null>(null)
+  const [errorCarga, setErrorCarga] = useState('')
 
-  const [rol, setRol] = useState<'recepcionista' | 'peluquero'>('recepcionista')
-  const [peluqueroId, setPeluqueroId] = useState('')
+  const [rol, setRol] = useState<'recepcionista' | 'peluquero'>('peluquero')
+  const [fichaId, setFichaId] = useState('')
   const [creando, setCreando] = useState(false)
+  const [creada, setCreada] = useState<Invitacion | null>(null)
   const [error, setError] = useState('')
-  const [copiado, setCopiado] = useState('')
   const [cambiando, setCambiando] = useState('')
 
-  useEffect(() => {
+  // Solo toca el estado cuando llega la respuesta: sirve para la primera carga
+  // y para el refresco en silencio. Si un refresco falla, se queda lo último.
+  const pedirEquipo = useCallback(() => {
     fetch('/api/equipo')
       .then(async (res) => {
         const json = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(json.error ?? 'No pudimos cargar el equipo')
         return json as Equipo
       })
-      .then((datos) => setRespuesta({ recarga, equipo: datos, error: '' }))
-      .catch((err) => setRespuesta({ recarga, equipo: null, error: err.message }))
-  }, [recarga])
+      .then((datos) => {
+        setEquipo(datos)
+        setErrorCarga('')
+      })
+      .catch((err) => setErrorCarga(err.message))
+  }, [])
+
+  useEffect(() => {
+    pedirEquipo()
+  }, [pedirEquipo])
+
+  // Quien acepta una invitación aparece en Cuentas sin recargar.
+  useMantenerActualizado(pedirEquipo, REFRESCO_MS)
 
   async function invitar() {
-    if (rol === 'peluquero' && !peluqueroId) return setError('Elige la ficha del peluquero')
     setCreando(true)
     setError('')
-    try {
-      const res = await fetch('/api/equipo/invitaciones', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(rol === 'peluquero' ? { rol, peluquero_id: peluqueroId } : { rol }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setError(json.error ?? 'No pudimos crear la invitación')
-        return
-      }
-      setPeluqueroId('')
-      setRecarga((n) => n + 1)
-    } catch {
-      setError('No pudimos conectar con el servidor')
-    } finally {
-      setCreando(false)
-    }
-  }
-
-  async function copiar(token: string) {
-    try {
-      await navigator.clipboard.writeText(enlaceInvitacion(token))
-      setCopiado(token)
-      setTimeout(() => setCopiado(''), 2000)
-    } catch {
-      setError('No pudimos copiar el enlace')
-    }
-  }
-
-  function compartir(invitacion: Invitacion) {
-    const texto = `Te invito a unirte al equipo como ${invitacion.rol}. Crea tu cuenta aquí: ${enlaceInvitacion(invitacion.token)}`
-    window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank', 'noopener')
-  }
-
-  async function anular(id: string) {
-    setError('')
-    const res = await fetch(`/api/equipo/invitaciones/${id}`, { method: 'DELETE' }).catch(() => null)
-    if (!res?.ok) {
-      const json = await res?.json().catch(() => ({}))
-      setError(json?.error ?? 'No pudimos anular la invitación')
+    const ficha = rol === 'peluquero' ? equipo?.peluquerosSinCuenta.find((p) => p.id === fichaId) : null
+    const resultado = await crearInvitacion(rol, ficha)
+    setCreando(false)
+    if ('error' in resultado) {
+      setError(resultado.error)
       return
     }
-    setRecarga((n) => n + 1)
+    setFichaId('')
+    setCreada(resultado.invitacion)
+    pedirEquipo()
   }
 
   async function cambiarEstado(cuenta: Cuenta) {
@@ -138,7 +97,7 @@ export default function EquipoPage() {
         setError(json.error ?? 'No pudimos cambiar la cuenta')
         return
       }
-      setRecarga((n) => n + 1)
+      pedirEquipo()
     } finally {
       setCambiando('')
     }
@@ -160,7 +119,8 @@ export default function EquipoPage() {
         <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="font-semibold text-gray-800">Invitar a alguien</h2>
           <p className="mt-1 text-sm text-gray-500">
-            Se crea un enlace de 7 días. La persona lo abre, crea su cuenta y entra con su propio acceso.
+            Crea un enlace y envíalo por WhatsApp. La persona crea su cuenta y entra con su propio acceso. Un peluquero
+            nuevo aparece solo en Peluqueros.
           </p>
           <form
             className="mt-5 grid gap-4 sm:grid-cols-3 sm:items-end"
@@ -177,31 +137,24 @@ export default function EquipoPage() {
                 onChange={(e) => setRol(e.target.value as 'recepcionista' | 'peluquero')}
                 className={INPUT}
               >
-                <option value="recepcionista">Recepcionista</option>
                 <option value="peluquero">Peluquero</option>
+                <option value="recepcionista">Recepcionista</option>
               </select>
             </div>
-            {rol === 'peluquero' && (
+            {rol === 'peluquero' && equipo && equipo.peluquerosSinCuenta.length > 0 && (
               <div>
-                <label htmlFor="fichaPeluquero" className={LABEL}>Ficha de peluquero</label>
-                {equipo && equipo.peluquerosSinCuenta.length === 0 ? (
-                  <p className="text-sm text-gray-500">
-                    Todos tienen cuenta.{' '}
-                    <Link href="/peluqueros" className="font-medium text-slate-700 hover:underline">Agrega uno</Link>
-                  </p>
-                ) : (
-                  <select id="fichaPeluquero" value={peluqueroId} onChange={(e) => setPeluqueroId(e.target.value)} className={INPUT}>
-                    <option value="">Elige un peluquero</option>
-                    {equipo?.peluquerosSinCuenta.map((p) => (
-                      <option key={p.id} value={p.id}>{p.nombre}</option>
-                    ))}
-                  </select>
-                )}
+                <label htmlFor="fichaPeluquero" className={LABEL}>¿Quién es?</label>
+                <select id="fichaPeluquero" value={fichaId} onChange={(e) => setFichaId(e.target.value)} className={INPUT}>
+                  <option value="">Alguien nuevo</option>
+                  {equipo.peluquerosSinCuenta.map((p) => (
+                    <option key={p.id} value={p.id}>{p.nombre} (ya está en Peluqueros)</option>
+                  ))}
+                </select>
               </div>
             )}
             <div>
-              <button type="submit" disabled={creando} className={BOTON_PRIMARIO}>
-                {creando ? 'Creando...' : 'Crear invitación'}
+              <button type="submit" disabled={creando} className={`${BOTON_PRIMARIO} w-full`}>
+                {creando ? 'Creando...' : 'Crear enlace de invitación'}
               </button>
             </div>
           </form>
@@ -209,26 +162,7 @@ export default function EquipoPage() {
           {equipo && equipo.invitaciones.length > 0 && (
             <div className="mt-6 space-y-3 border-t border-gray-100 pt-5">
               <h3 className="text-sm font-semibold text-gray-700">Invitaciones pendientes</h3>
-              {equipo.invitaciones.map((inv) => (
-                <div key={inv.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-gray-50 px-4 py-3 text-sm">
-                  <span className="min-w-0 flex-1">
-                    <span className="font-medium text-gray-800">
-                      {esRol(inv.rol) ? NOMBRE_ROL[inv.rol] : inv.rol}
-                      {inv.peluquero && ` · ${inv.peluquero}`}
-                    </span>
-                    <span className="block text-xs text-gray-400">Vence el {formatearVence(inv.vence_en)}</span>
-                  </span>
-                  <button type="button" onClick={() => compartir(inv)} className={BOTON_SECUNDARIO}>
-                    WhatsApp
-                  </button>
-                  <button type="button" onClick={() => copiar(inv.token)} className={BOTON_SECUNDARIO}>
-                    {copiado === inv.token ? 'Copiado ✓' : 'Copiar enlace'}
-                  </button>
-                  <button type="button" onClick={() => anular(inv.id)} className="text-sm text-gray-400 hover:text-red-500">
-                    Anular
-                  </button>
-                </div>
-              ))}
+              <ListaInvitaciones invitaciones={equipo.invitaciones} onAnulada={pedirEquipo} onError={setError} />
             </div>
           )}
         </section>
@@ -236,13 +170,13 @@ export default function EquipoPage() {
         {/* Cuentas */}
         <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 font-semibold text-gray-800">Cuentas</h2>
-          {cargando ? (
+          {!equipo && !errorCarga ? (
             <p className="py-6 text-center text-sm text-gray-400">Cargando equipo...</p>
-          ) : respuesta.error ? (
-            <p className="py-6 text-center text-sm text-red-500">{respuesta.error}</p>
+          ) : !equipo ? (
+            <p className="py-6 text-center text-sm text-red-500">{errorCarga}</p>
           ) : (
             <ul className="divide-y divide-gray-100">
-              {equipo?.cuentas.map((c) => (
+              {equipo.cuentas.map((c) => (
                 <li key={c.id} className="flex flex-wrap items-center gap-3 py-3 text-sm">
                   <span className="min-w-0 flex-1">
                     <span className="font-medium text-gray-900">
@@ -291,6 +225,8 @@ export default function EquipoPage() {
           </dl>
         </section>
       </div>
+
+      <ModalInvitacionCreada invitacion={creada} onCerrar={() => setCreada(null)} />
     </div>
   )
 }

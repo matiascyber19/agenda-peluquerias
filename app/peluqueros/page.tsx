@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import Navbar from '../components/Navbar'
 import ModalPeluquero, { type Peluquero } from '../components/ModalPeluquero'
+import { crearInvitacion, ListaInvitaciones, ModalInvitacionCreada, type Invitacion } from '../components/Invitaciones'
+import { BOTON_SECUNDARIO } from '../components/estilos'
+import { useMantenerActualizado } from '../lib/useMantenerActualizado'
 
 const ETIQUETA_CONTRATO: Record<string, string> = {
   fijo: 'Sueldo fijo',
@@ -10,16 +13,22 @@ const ETIQUETA_CONTRATO: Record<string, string> = {
   arriendo_sillon: 'Arriendo de sillón',
 }
 
+// Cada cuánto se revisa si alguien se unió con su enlace, con la página a la vista.
+const REFRESCO_MS = 10_000
+
 export default function PeluquerosPage() {
-  const [peluqueros, setPeluqueros] = useState<Peluquero[]>([])
-  const [loading, setLoading] = useState(true)
+  const [peluqueros, setPeluqueros] = useState<Peluquero[] | null>(null)
+  const [invitaciones, setInvitaciones] = useState<Invitacion[]>([])
+  const [errorCarga, setErrorCarga] = useState('')
   const [error, setError] = useState('')
   const [modalAbierto, setModalAbierto] = useState(false)
   const [enEdicion, setEnEdicion] = useState<Peluquero | null>(null)
   const [cambiandoId, setCambiandoId] = useState('')
+  const [invitando, setInvitando] = useState('')
+  const [creada, setCreada] = useState<Invitacion | null>(null)
 
-  // Solo toca el estado cuando llega la respuesta, para poder llamarla desde el
-  // efecto de montaje sin provocar renders en cascada.
+  // Solo toca el estado cuando llega la respuesta: sirve para la primera carga
+  // y para el refresco en silencio. Si un refresco falla, se queda lo último.
   const pedirPeluqueros = useCallback(() => {
     fetch('/api/peluqueros')
       .then(async (res) => {
@@ -27,21 +36,39 @@ export default function PeluquerosPage() {
         if (!res.ok) throw new Error(json.error ?? 'No pudimos cargar los peluqueros')
         return json
       })
-      .then((json) => setPeluqueros(json.peluqueros ?? []))
-      .catch((err) => {
-        setError(err.message)
-        setPeluqueros([])
+      .then((json) => {
+        setPeluqueros(json.peluqueros ?? [])
+        setErrorCarga('')
       })
-      .finally(() => setLoading(false))
+      .catch((err) => setErrorCarga(err.message))
+
+    // Invitaciones de peluquero que esperan que alguien se una
+    fetch('/api/equipo')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (json) setInvitaciones((json.invitaciones ?? []).filter((i: Invitacion) => i.rol === 'peluquero'))
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
     pedirPeluqueros()
   }, [pedirPeluqueros])
 
-  function cargar() {
-    setLoading(true)
+  // Quien se une con su enlace aparece en la lista sin recargar.
+  useMantenerActualizado(pedirPeluqueros, REFRESCO_MS)
+
+  /** Crea el enlace: sin ficha, para alguien nuevo; con ficha, para vincular a ese peluquero. */
+  async function invitar(ficha?: Peluquero) {
+    setInvitando(ficha?.id ?? 'nuevo')
     setError('')
+    const resultado = await crearInvitacion('peluquero', ficha ? { id: ficha.id, nombre: ficha.nombre } : null)
+    setInvitando('')
+    if ('error' in resultado) {
+      setError(resultado.error)
+      return
+    }
+    setCreada(resultado.invitacion)
     pedirPeluqueros()
   }
 
@@ -62,7 +89,7 @@ export default function PeluquerosPage() {
         setError(json.error ?? 'No pudimos cambiar el estado del peluquero')
         return
       }
-      cargar()
+      pedirPeluqueros()
     } finally {
       setCambiandoId('')
     }
@@ -78,29 +105,51 @@ export default function PeluquerosPage() {
       <Navbar />
 
       <div className="mx-auto max-w-5xl px-6 py-8">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Peluqueros</h1>
             <p className="mt-1 text-sm text-gray-500">
-              {loading ? 'Cargando...' : error ? '—' : `${peluqueros.length} en el equipo`}
+              {peluqueros ? `${peluqueros.length} en el equipo` : errorCarga ? '—' : 'Cargando...'}
             </p>
           </div>
-          <button
-            onClick={abrirNuevo}
-            className="rounded-xl bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700"
-          >
-            + Nuevo peluquero
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" onClick={abrirNuevo} className={BOTON_SECUNDARIO}>
+              Agregar sin cuenta
+            </button>
+            <button
+              type="button"
+              onClick={() => invitar()}
+              disabled={invitando === 'nuevo'}
+              className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+            >
+              {invitando === 'nuevo' ? 'Creando enlace...' : '+ Invitar peluquero'}
+            </button>
+          </div>
         </div>
 
-        {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
+        <p className="mb-6 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+          <span className="font-medium text-gray-800">Invitar peluquero</span> crea un enlace para enviar por WhatsApp: la
+          persona crea su cuenta y aparece aquí sola, con acceso a sus citas y comisiones.{' '}
+          <span className="font-medium text-gray-800">Agregar sin cuenta</span> es para quien no va a usar la app.
+        </p>
 
-        {loading ? (
+        {error && <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
+
+        {invitaciones.length > 0 && (
+          <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <h2 className="mb-3 text-sm font-semibold text-gray-700">Invitaciones pendientes</h2>
+            <ListaInvitaciones invitaciones={invitaciones} onAnulada={pedirPeluqueros} onError={setError} />
+          </section>
+        )}
+
+        {!peluqueros && !errorCarga ? (
           <p className="py-12 text-center text-sm text-gray-400">Cargando peluqueros...</p>
+        ) : !peluqueros ? (
+          <p className="py-12 text-center text-sm text-red-500">{errorCarga}</p>
         ) : peluqueros.length === 0 ? (
           <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center shadow-sm">
             <p className="text-sm text-gray-400">
-              Todavía no tienes peluqueros. Agrega al menos uno para poder agendar citas.
+              Todavía no tienes peluqueros. Invita a tu equipo o agrega al menos uno para poder agendar citas.
             </p>
           </div>
         ) : (
@@ -138,8 +187,11 @@ export default function PeluquerosPage() {
                     <span className="text-gray-400"> · {peluquero.porcentaje_comision}%</span>
                   )}
                 </p>
+                <p className="mt-1 text-xs text-gray-400">
+                  {peluquero.usuario_id ? 'Entra a la app con su cuenta' : 'Sin cuenta en la app'}
+                </p>
 
-                <div className="mt-4 flex gap-3 border-t border-gray-100 pt-3">
+                <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-t border-gray-100 pt-3">
                   <button
                     onClick={() => {
                       setEnEdicion(peluquero)
@@ -156,6 +208,17 @@ export default function PeluquerosPage() {
                   >
                     {cambiandoId === peluquero.id ? '...' : peluquero.activo ? 'Desactivar' : 'Activar'}
                   </button>
+                  {!peluquero.usuario_id && peluquero.activo && invitaciones.some((i) => i.peluquero_id === peluquero.id) ? (
+                    <span className="text-sm text-gray-400">Acceso enviado</span>
+                  ) : !peluquero.usuario_id && peluquero.activo && (
+                    <button
+                      onClick={() => invitar(peluquero)}
+                      disabled={invitando === peluquero.id}
+                      className="text-sm font-medium text-green-700 transition-colors hover:text-green-800 disabled:opacity-50"
+                    >
+                      {invitando === peluquero.id ? 'Creando enlace...' : 'Enviarle acceso'}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -166,9 +229,11 @@ export default function PeluquerosPage() {
       <ModalPeluquero
         abierto={modalAbierto}
         onCerrar={() => setModalAbierto(false)}
-        onGuardado={cargar}
+        onGuardado={pedirPeluqueros}
         peluquero={enEdicion}
       />
+
+      <ModalInvitacionCreada invitacion={creada} onCerrar={() => setCreada(null)} />
     </div>
   )
 }

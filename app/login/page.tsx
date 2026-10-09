@@ -2,7 +2,15 @@
 
 import { use, useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
+import Portada, { BOTON_PORTADA, Resaltado } from '../components/Portada'
+import { BOTON_ACCESO, INPUT_ACCESO } from '../components/TarjetaAcceso'
+
+const FUNCIONES = [
+  { icono: '📅', titulo: 'Agenda por peluquero', texto: 'Cada uno con su color y sin horas cruzadas.' },
+  { icono: '📲', titulo: 'Reservas en línea', texto: 'Tu enlace para Instagram o WhatsApp, abierto las 24 horas.' },
+  { icono: '👥', titulo: 'Tu equipo con acceso', texto: 'Los invitas con un enlace y cada uno ve sus citas y comisiones.' },
+  { icono: '💰', titulo: 'Cobros y reportes', texto: 'Ingresos, gastos y comisiones del mes, sin planillas.' },
+]
 
 // Avisos que llegan en la URL:
 //   ?acceso=sin-cuenta        proxy.ts: cuenta sin peluquería o desactivada
@@ -32,11 +40,14 @@ export default function LoginPage({
   const [error, setError] = useState(inicial?.tipo === 'error' ? inicial.texto : '')
   const [aviso, setAviso] = useState(inicial?.tipo === 'ok' ? inicial.texto : '')
   const [loading, setLoading] = useState(false)
+  // La cuenta existe pero no está en ninguna peluquería: puede crear la suya.
+  const [sinPeluqueria, setSinPeluqueria] = useState(false)
 
   async function handleLogin() {
     setLoading(true)
     setError('')
     setAviso('')
+    setSinPeluqueria(false)
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -48,6 +59,7 @@ export default function LoginPage({
       if (!res.ok) {
         const json = await res.json().catch(() => ({}))
         setError(json.error ?? 'Correo o contraseña incorrectos')
+        setSinPeluqueria(json.sinPeluqueria === true)
         setLoading(false)
         return
       }
@@ -62,85 +74,108 @@ export default function LoginPage({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-6">
-          <Image
-            src="/logo_agenda_peluqueria.png"
-            alt="Agenda Peluquerías"
-            width={144}
-            height={144}
-            loading="eager"
-            className="w-36 h-36 object-contain mx-auto filter invert"
-          />
-          <p className="text-slate-400 text-sm mt-1">Panel de gestión para tu negocio</p>
-        </div>
+    <Portada
+      titular={
+        <>
+          La agenda de tu peluquería, <Resaltado>ordenada y en línea</Resaltado>
+        </>
+      }
+      texto="Agenda, clientes, cobros y comisiones en un solo lugar. Tus clientes reservan solos desde el celular y tu equipo entra con su propia cuenta."
+      acciones={
+        <>
+          <Link href="/registro" className={BOTON_PORTADA}>
+            Crear mi peluquería gratis →
+          </Link>
+          <a href="#formulario" className="px-2 py-3 text-sm font-medium text-slate-300 hover:text-white lg:hidden">
+            Ya tengo cuenta ↓
+          </a>
+        </>
+      }
+      detalle={
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {FUNCIONES.map((f) => (
+            <li key={f.titulo} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+              <span aria-hidden className="text-2xl">{f.icono}</span>
+              <p className="mt-2 font-semibold text-white">{f.titulo}</p>
+              <p className="mt-1 text-sm leading-snug text-slate-400">{f.texto}</p>
+            </li>
+          ))}
+        </ul>
+      }
+    >
+      <div className="rounded-2xl bg-white p-8 text-gray-900 shadow-2xl">
+        <h2 className="text-xl font-semibold text-gray-800">Inicia sesión</h2>
+        <p className="mt-1 mb-6 text-sm text-gray-500">Dueños, recepcionistas y peluqueros entran aquí.</p>
 
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-6">Inicia sesión</h2>
-
-          <form
-            className="space-y-5"
-            onSubmit={(e) => {
-              e.preventDefault()
-              handleLogin()
-            }}
-          >
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">Correo electrónico</label>
-              <input
-                id="email"
-                autoComplete="email"
-                type="email"
-                placeholder="tu@correo.cl"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-800 focus:bg-white transition-all"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-baseline justify-between mb-1.5">
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">Contraseña</label>
-                <Link href="/recuperar" className="text-xs text-slate-600 hover:underline">¿Olvidaste tu contraseña?</Link>
-              </div>
-              <input
-                id="password"
-                autoComplete="current-password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-800 focus:bg-white transition-all"
-              />
-            </div>
-
-            {aviso && <p className="text-green-600 text-sm">{aviso}</p>}
-            {error && <p className="text-red-500 text-sm">{error}</p>}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-slate-900 text-white rounded-xl py-3 text-sm font-semibold hover:bg-slate-700 active:scale-95 transition-all mt-2 disabled:opacity-50"
-            >
-              {loading ? 'Ingresando...' : 'Ingresar →'}
-            </button>
-          </form>
-
-          <div className="flex items-center gap-3 my-6">
-            <div className="flex-1 h-px bg-gray-100"></div>
-            <span className="text-xs text-gray-400">o</span>
-            <div className="flex-1 h-px bg-gray-100"></div>
+        <form
+          className="space-y-5"
+          onSubmit={(e) => {
+            e.preventDefault()
+            handleLogin()
+          }}
+        >
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">Correo electrónico</label>
+            <input
+              id="email"
+              autoComplete="email"
+              type="email"
+              placeholder="tu@correo.cl"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={INPUT_ACCESO}
+            />
           </div>
 
-          <p className="text-center text-sm text-gray-500">
-            ¿No tienes cuenta?{" "}
-            <Link href="/registro" className="text-slate-800 font-semibold hover:underline">Regístrate gratis</Link>
-          </p>
+          <div>
+            <div className="flex items-baseline justify-between mb-1.5">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Contraseña</label>
+              <Link href="/recuperar" className="text-xs text-slate-600 hover:underline">¿Olvidaste tu contraseña?</Link>
+            </div>
+            <input
+              id="password"
+              autoComplete="current-password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={INPUT_ACCESO}
+            />
+          </div>
+
+          {aviso && <p className="text-green-600 text-sm">{aviso}</p>}
+          {error && (
+            <div className="space-y-2">
+              <p className="text-red-500 text-sm">{error}</p>
+              {sinPeluqueria && (
+                <Link href="/registro" className="inline-block text-sm font-semibold text-slate-800 hover:underline">
+                  Crear mi peluquería con esta cuenta →
+                </Link>
+              )}
+            </div>
+          )}
+
+          <button type="submit" disabled={loading} className={BOTON_ACCESO}>
+            {loading ? 'Ingresando...' : 'Ingresar →'}
+          </button>
+        </form>
+
+        <div className="flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-gray-100"></div>
+          <span className="text-xs text-gray-400">¿Primera vez aquí?</span>
+          <div className="flex-1 h-px bg-gray-100"></div>
         </div>
 
-        <p className="text-center text-xs text-slate-500 mt-6">© 2026 Agenda Peluquerías · Hecho en Chile 🇨🇱</p>
+        <Link
+          href="/registro"
+          className="block w-full rounded-xl border border-gray-300 py-3 text-center text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-50"
+        >
+          Crear mi peluquería gratis
+        </Link>
+        <p className="mt-3 text-center text-xs text-gray-400">
+          ¿Trabajas en una peluquería? Pídele al dueño tu enlace de invitación.
+        </p>
       </div>
-    </div>
+    </Portada>
   )
 }

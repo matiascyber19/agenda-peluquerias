@@ -63,6 +63,9 @@ export default function SolicitudesPage() {
     setRespondidas((previas) => [respondida, ...previas])
     setSolicitudes((previas) => previas.filter((s) => s.id !== respondida.solicitud.id))
     avisarCambioEnSolicitudes()
+    // Una propuesta sigue pendiente (ahora del cliente): se vuelve a pedir para
+    // que aparezca en "Esperando respuesta del cliente" al apretar "Listo".
+    if (respondida.resultado === 'propuesta') pedirSolicitudes()
   }
 
   const respondidasIds = new Set(respondidas.map((r) => r.solicitud.id))

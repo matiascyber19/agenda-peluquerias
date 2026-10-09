@@ -8,8 +8,9 @@
 -- Uso en un proyecto de Supabase NUEVO y vacío: SQL Editor → pegar → Run.
 -- Después ejecutar en orden supabase/migraciones/001 a 005.
 --
--- No incluye datos. Los permisos de anon y authenticated sobre las tablas los
--- da Supabase por defecto en el esquema public.
+-- No incluye datos. Los permisos de anon y authenticated sobre las tablas se
+-- dan explícitamente al final: un proyecto de Supabase puede no darlos solo a
+-- las tablas nuevas. RLS es lo que limita qué filas ve cada cuenta.
 
 begin;
 
@@ -368,5 +369,9 @@ create policy usuario_ve_sus_comisiones on public.comisiones
 create policy usuario_ve_sus_gastos on public.gastos
   as permissive for all to public
   using ((peluqueria_id = get_my_peluqueria_id()));
+
+-- 7. Permisos de las cuentas sobre las tablas (RLS decide las filas)
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on all tables in schema public to anon, authenticated;
 
 commit;

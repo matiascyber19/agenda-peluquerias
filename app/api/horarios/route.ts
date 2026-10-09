@@ -1,5 +1,5 @@
 import { createClient } from '@/app/lib/supabase/server'
-import { usuarioConPeluqueria } from '@/app/lib/sesion'
+import { usuarioConPeluqueria, exigirRol } from '@/app/lib/sesion'
 import { type Franja, validarFranjas } from '@/app/lib/horarios'
 import { NextResponse } from 'next/server'
 
@@ -50,6 +50,9 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const supabase = await createClient()
+    // Solo dueño
+    const sinPermiso = await exigirRol(supabase, ['dueño'])
+    if (sinPermiso) return sinPermiso
     const sesion = await usuarioConPeluqueria(supabase)
     if (!sesion) {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 })

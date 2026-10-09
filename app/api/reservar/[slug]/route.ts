@@ -32,7 +32,8 @@ export async function GET(
 
 // ============================================
 // POST /api/reservar/[slug]
-// Crea la solicitud de reserva (estado 'solicitada').
+// Crea la reserva: 'solicitada', o 'confirmada' si la peluquería confirma
+// automáticamente (reglas de la migración 006).
 // Body: { servicio_ids: ["uuid"], peluquero_id: "uuid" | null, inicio: "ISO",
 //         nombre, telefono, email?, notas? }
 // Responde 409 si la hora se tomó mientras el cliente elegía.

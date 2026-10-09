@@ -5,41 +5,34 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useSolicitudesPendientes } from '../lib/useSolicitudesPendientes'
-
-const enlaces = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/agenda', label: 'Agenda' },
-  { href: '/solicitudes', label: 'Solicitudes' },
-  { href: '/clientes', label: 'Clientes' },
-  { href: '/servicios', label: 'Servicios' },
-  { href: '/peluqueros', label: 'Peluqueros' },
-  { href: '/reportes', label: 'Reportes' },
-  { href: '/configuracion', label: 'Configuración' },
-]
+import { esRol, PAGINAS, type Rol } from '../lib/roles'
 
 export default function Navbar({ peluqueria }: { peluqueria?: string }) {
   const pathname = usePathname()
-  const [nombreApi, setNombreApi] = useState('')
+  const [me, setMe] = useState<{ peluqueria: string | null; rol: Rol | null } | null>(null)
   const [saliendo, setSaliendo] = useState(false)
-  const pendientes = useSolicitudesPendientes()
 
-  // Si la página ya conoce el nombre de la peluquería lo usa;
-  // si no, lo pide a /api/me (si falla, el nombre simplemente no se muestra).
-  const nombre = peluqueria || nombreApi
-
+  // El rol decide qué enlaces se muestran (proxy.ts protege las páginas).
   useEffect(() => {
-    if (peluqueria) return
     let cancelado = false
     fetch('/api/me')
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
-        if (!cancelado && json?.peluqueria) setNombreApi(json.peluqueria)
+        if (!cancelado && json) setMe({ peluqueria: json.peluqueria ?? null, rol: esRol(json.rol) ? json.rol : null })
       })
       .catch(() => {})
     return () => {
       cancelado = true
     }
-  }, [peluqueria])
+  }, [])
+
+  const nombre = peluqueria || me?.peluqueria || ''
+  const rol = me?.rol ?? null
+  const pendientes = useSolicitudesPendientes(rol === 'dueño' || rol === 'recepcionista')
+  // Mientras se conoce el rol, solo las páginas que ven todos.
+  const enlaces = PAGINAS.filter((p) => (rol ? p.roles.includes(rol) : p.roles.length === 3)).map((p) =>
+    p.href === '/comisiones' && rol === 'peluquero' ? { ...p, label: 'Mis comisiones' } : p
+  )
 
   async function handleLogout() {
     setSaliendo(true)

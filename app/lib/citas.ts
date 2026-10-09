@@ -7,11 +7,15 @@ const ESTADOS_SIN_HORARIO = ['cancelada', 'no_show', 'rechazada']
 
 /**
  * Filtro de PostgREST (para `.or()`) que deja fuera las reservas en línea que
- * todavía no son citas de la agenda: la solicitud sin responder y la rechazada.
- * La agenda, el dashboard y las estadísticas lo usan. Incluye `estado` nulo
- * porque `not.in` lo descartaría.
+ * todavía no son citas de la agenda: la solicitud sin responder, la hora
+ * propuesta que el cliente no ha aceptado y la rechazada. La agenda, el
+ * dashboard y las estadísticas lo usan. Incluye `estado` nulo porque `not.in`
+ * lo descartaría.
  */
-export const FILTRO_CITAS_DE_AGENDA = 'estado.is.null,estado.not.in.(solicitada,rechazada)'
+export const FILTRO_CITAS_DE_AGENDA = 'estado.is.null,estado.not.in.(solicitada,rechazada,propuesta)'
+
+/** Reservas en línea que esperan respuesta: de la peluquería o del cliente. */
+export const ESTADOS_DE_SOLICITUD = ['solicitada', 'propuesta']
 
 export function ocupaHorario(estado: string) {
   return !ESTADOS_SIN_HORARIO.includes(estado)

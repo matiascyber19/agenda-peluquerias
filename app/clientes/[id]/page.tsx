@@ -95,6 +95,7 @@ const COLOR_ESTADO: Record<string, string> = {
   cancelada: 'bg-red-100 text-red-700',
   no_show: 'bg-red-100 text-red-500',
   solicitada: 'bg-blue-100 text-blue-700',
+  propuesta: 'bg-blue-50 text-blue-600',
   rechazada: 'bg-gray-100 text-gray-500',
 }
 

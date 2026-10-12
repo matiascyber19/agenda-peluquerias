@@ -8,6 +8,7 @@ import { useSolicitudesPendientes } from "../lib/useSolicitudesPendientes"
 import { useMantenerActualizado } from "../lib/useMantenerActualizado"
 import { esRol, puedeVer } from "../lib/roles"
 import { cuandoEs } from "../lib/fechas"
+import GuiaInicio from "./GuiaInicio"
 
 interface DashboardData {
   usuario: {
@@ -174,6 +175,9 @@ export default function DashboardPage() {
             </div>
           </div>
         </section>
+
+        {/* Pasos para dejar lista una peluquería nueva; solo el dueño puede hacerlos */}
+        {rol === "dueño" && <GuiaInicio />}
 
         {/* Tarjetas resumen */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

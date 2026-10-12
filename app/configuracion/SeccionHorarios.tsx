@@ -171,7 +171,7 @@ export default function SeccionHorarios() {
   }
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+    <section id="horarios" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
       <h2 className="font-semibold text-gray-800">Horarios de atención</h2>
       <p className="mt-1 text-sm text-gray-500">
         Cuándo recibe reservas en línea cada peluquero. Sin horario, no recibe reservas.

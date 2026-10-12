@@ -3,11 +3,13 @@ import SeccionContacto from './SeccionContacto'
 import SeccionReglas from './SeccionReglas'
 import SeccionHorarios from './SeccionHorarios'
 import SeccionCierres from './SeccionCierres'
+import IrAlAncla from './IrAlAncla'
 
 export default function ConfiguracionPage() {
   return (
     <div className="min-h-screen fondo-panel">
       <Navbar />
+      <IrAlAncla />
 
       <div className="mx-auto max-w-4xl space-y-6 px-6 py-8">
         <div>

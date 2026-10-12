@@ -74,7 +74,7 @@ export default function SeccionContacto() {
   }
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+    <section id="contacto" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
       <h2 className="font-semibold text-gray-800">Contacto y reservas</h2>
       <p className="mt-1 text-sm text-gray-500">Cómo te avisamos de una reserva y cómo te contactan tus clientes</p>
 

@@ -85,7 +85,7 @@ export default function SeccionReglas() {
   }
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+    <section id="reglas" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
       <h2 className="font-semibold text-gray-800">Reglas de la reserva en línea</h2>
       <p className="mt-1 text-sm text-gray-500">Cómo y cuándo pueden reservar tus clientes desde tu enlace</p>
 

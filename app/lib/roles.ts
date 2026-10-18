@@ -19,6 +19,7 @@ export type Grupo = (typeof GRUPOS)[number]
 export const PAGINAS: { href: string; label: string; grupo: Grupo; roles: Rol[] }[] = [
   { href: '/dashboard', label: 'Dashboard', grupo: 'Día a día', roles: TODOS },
   { href: '/agenda', label: 'Agenda', grupo: 'Día a día', roles: TODOS },
+  { href: '/recordatorios', label: 'Recordatorios', grupo: 'Día a día', roles: TODOS },
   { href: '/solicitudes', label: 'Solicitudes', grupo: 'Día a día', roles: ['dueño', 'recepcionista'] },
   { href: '/clientes', label: 'Clientes', grupo: 'Día a día', roles: ['dueño', 'recepcionista'] },
   { href: '/servicios', label: 'Servicios', grupo: 'Negocio', roles: ['dueño'] },

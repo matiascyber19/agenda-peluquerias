@@ -59,6 +59,7 @@ export const config = {
   matcher: [
     '/dashboard/:path*',
     '/agenda/:path*',
+    '/recordatorios/:path*',
     '/solicitudes/:path*',
     '/clientes/:path*',
     '/servicios/:path*',

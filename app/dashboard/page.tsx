@@ -9,6 +9,7 @@ import { useMantenerActualizado } from "../lib/useMantenerActualizado"
 import { esRol, puedeVer } from "../lib/roles"
 import { cuandoEs } from "../lib/fechas"
 import GuiaInicio from "./GuiaInicio"
+import TarjetaRecordatorios from "./TarjetaRecordatorios"
 
 interface DashboardData {
   usuario: {
@@ -270,6 +271,9 @@ export default function DashboardPage() {
                 )}
               </div>
             </div>
+
+            {/* Clientes de mañana que faltan por avisar; no aparece si mañana no hay citas */}
+            <TarjetaRecordatorios />
 
             {/* Reservas en línea que esperan respuesta; se actualiza sola. Solo para quien las responde. */}
             {rol && puedeVer(rol, "/solicitudes") && (

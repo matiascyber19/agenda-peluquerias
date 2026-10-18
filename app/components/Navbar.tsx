@@ -32,6 +32,12 @@ const TRAZOS: Record<string, React.ReactNode> = {
       <path d="M3.5 10h17M8 3v4M16 3v4" />
     </>
   ),
+  '/recordatorios': (
+    <>
+      <path d="M6 9a6 6 0 1 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9" />
+      <path d="M10.3 20.5a1.9 1.9 0 0 0 3.4 0" />
+    </>
+  ),
   '/solicitudes': (
     <>
       <path d="M3.5 13h4.5l1.5 3h5l1.5-3h4.5" />

@@ -65,7 +65,9 @@ export default function LoginPage({
       }
 
       // Carga completa: el proxy y el menú leen la sesión nueva, y si algo
-      // falla la página no queda a medio navegar con el botón cargando.
+      // falla la página no queda a medio navegar con el botón cargando. Con
+      // router.push el login quedaba en "Ingresando…" (error del 9 de octubre).
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a propósito: ver el comentario de arriba
       window.location.assign('/dashboard')
     } catch {
       setError('No pudimos conectar con el servidor. Revisa tu conexión.')

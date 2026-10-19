@@ -33,6 +33,7 @@ export default function FormularioUnirse({ token, nombreSugerido }: { token: str
         return
       }
       // Carga completa: el menú y el proxy leen la sesión nueva.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a propósito: ver el comentario de arriba
       window.location.href = '/dashboard'
     } catch {
       setError('No pudimos conectar con el servidor')

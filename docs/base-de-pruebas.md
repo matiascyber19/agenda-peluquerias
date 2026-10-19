@@ -24,7 +24,7 @@ La solución es un **segundo proyecto de Supabase, solo para pruebas**. Vercel p
    - **Redirect URLs:** `http://localhost:3000/**` y `https://agenda-peluquerias-*.vercel.app/**`. La segunda cubre los previews. El `**` hace falta porque la app envía la dirección con `?next=...` y Supabase compara la URL completa.
    - En **Emails → Templates → Reset password**, la misma plantilla que en producción: el enlace `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=recovery`.
 
-Probé esta secuencia en una base vacía (PGlite, Postgres 18), sin los permisos automáticos que algunos proyectos de Supabase dan a las tablas nuevas: el esquema y las 7 migraciones se ejecutan sin errores, y funcionan el registro, la creación de servicios y peluqueros, la página pública, la reserva en línea, el rechazo de una hora tomada, los permisos, la tarea programada y las invitaciones con y sin ficha de peluquero.
+Esta secuencia se prueba sola con `npm test` (`pruebas/bd/`), en una base vacía (PGlite) y sin los permisos automáticos que algunos proyectos de Supabase dan a las tablas nuevas. Las pruebas revisan que el esquema y todas las migraciones se ejecuten sin errores, y además prueban el registro, la reserva en línea, el rechazo de una hora tomada, los permisos de cada rol, las comisiones y las invitaciones.
 
 ## 2. Conectar los ambientes
 

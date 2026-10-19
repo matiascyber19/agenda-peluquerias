@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Agenda Peluquerías
 
-## Getting Started
+Panel de gestión para peluquerías y barberías de Chile: agenda por peluquero, reserva en línea (`/reservar/[slug]`), clientes, cobros, comisiones, gastos, reportes, equipo con roles y recordatorios por WhatsApp.
 
-First, run the development server:
+Producción: [agenda-peluquerias-nine.vercel.app](https://agenda-peluquerias-nine.vercel.app)
+
+**Tecnología:** Next.js 16 (App Router), React 19, Tailwind CSS 4 y Supabase (Auth y Postgres, con seguridad por fila para separar las peluquerías y los roles). Se despliega en Vercel.
+
+## Desarrollo
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre [http://localhost:3000](http://localhost:3000). Necesita un `.env.local` con `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> Esta versión de Next.js tiene cambios respecto de las anteriores (por ejemplo, `proxy.ts` en vez de `middleware.ts`). Ante la duda, la documentación está en `node_modules/next/dist/docs/`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Pruebas
 
-## Learn More
+```bash
+npm test
+```
 
-To learn more about Next.js, take a look at the following resources:
+Corren sin conexión, sin Supabase y sin claves, en unos 20 segundos:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **`pruebas/bd/`**: el esquema inicial y todas las migraciones en un Postgres en memoria (PGlite). Cubre la reserva en línea, los cruces de horario, los cobros dobles, los permisos de cada rol, las comisiones y las invitaciones. Una migración nueva en `supabase/migraciones/` se prueba sola.
+- **`pruebas/api/`**: las rutas de login, registro e invitación con un Supabase simulado.
+- **`pruebas/*.test.ts`**: fechas en hora de Chile (con los cambios de horario), el mensaje de los recordatorios, los enlaces de WhatsApp y las páginas que ve cada rol.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`npm run test:watch` las repite al guardar. En cada PR y en cada cambio en `dev` y `main`, GitHub Actions corre el estilo (`eslint`), los tipos (`tsc`) y las pruebas.
 
-## Deploy on Vercel
+## Flujo de trabajo
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Rama → PR a `dev` → PR de `dev` a `main`. Vercel despliega `main` en producción.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Las migraciones de la base se ejecutan a mano en el SQL Editor de Supabase. El paso a paso está en cada archivo de `supabase/migraciones/`.
+
+## Documentación
+
+- [`docs/puesta-en-marcha.md`](docs/puesta-en-marcha.md): lo que falta configurar en Supabase, Vercel y cada peluquería.
+- [`docs/base-de-pruebas.md`](docs/base-de-pruebas.md): cómo crear una base de Supabase separada para pruebas.
+- [`docs/plan-reserva-en-linea.md`](docs/plan-reserva-en-linea.md): diseño de la reserva en línea.

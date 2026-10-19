@@ -1,0 +1,28 @@
+# Revisa cada PR y cada cambio en dev y main: estilo (eslint), tipos (tsc) y
+# las pruebas automáticas (npm test: rutas de la API con un Supabase falso y
+# la base de datos con el esquema y las migraciones en PGlite). No usa
+# Supabase ni Vercel ni ninguna clave.
+name: Pruebas
+
+on:
+  pull_request:
+  push:
+    branches: [dev, main]
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Estilo
+        run: npx eslint .
+      - name: Tipos
+        run: npx tsc --noEmit -p .
+      - name: Pruebas
+        run: npm test

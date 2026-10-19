@@ -93,6 +93,7 @@ export default function RegistroPage() {
       }
 
       // Carga completa: el proxy y el menú leen la sesión nueva.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a propósito: ver el comentario de arriba
       window.location.assign('/dashboard')
     } catch {
       setError('No pudimos conectar con el servidor. Revisa tu conexión.')

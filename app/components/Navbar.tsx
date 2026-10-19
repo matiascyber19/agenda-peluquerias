@@ -181,6 +181,9 @@ export default function Navbar({ peluqueria }: { peluqueria?: string }) {
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
     } finally {
+      // Carga completa: no queda nada de la sesión anterior en memoria (con
+      // router.push el menú y las páginas podían seguir mostrando sus datos).
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a propósito: ver el comentario de arriba
       window.location.href = '/login'
     }
   }

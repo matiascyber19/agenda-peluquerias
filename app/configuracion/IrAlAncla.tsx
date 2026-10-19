@@ -2,7 +2,9 @@
 
 import { useEffect } from 'react'
 
-const MAXIMO_MS = 4_000
+// Con conexión lenta las secciones pueden tardar varios segundos en cargar.
+// No molesta: solo actúa si la página cambia de alto y se suelta al tocarla.
+const MAXIMO_MS = 10_000
 const AL_MOVER = ['wheel', 'touchstart', 'keydown', 'mousedown'] as const
 
 /**

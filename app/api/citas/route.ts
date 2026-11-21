@@ -232,6 +232,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'La fecha de inicio no es válida' }, { status: 400 })
     }
 
+    // No permitir crear una cita en una fecha u hora que ya pasó
+    if (inicioFecha.getTime() <= Date.now()) {
+      return NextResponse.json(
+        { error: 'No se puede crear una cita en una fecha u hora pasada' },
+        { status: 400 }
+      )
+    }
+
     const errorParticipantes = await validarParticipantes(supabase, {
       clienteId: cliente_id,
       peluqueroId: peluquero_id,

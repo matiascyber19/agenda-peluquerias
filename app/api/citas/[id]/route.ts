@@ -62,6 +62,18 @@ export async function PATCH(
       }
     }
 
+    // No permitir reagendar una cita hacia una fecha u hora pasada
+    if (inicio !== undefined) {
+      const nuevoInicio = new Date(inicio)
+
+      if (nuevoInicio.getTime() <= Date.now()) {
+        return NextResponse.json(
+          { error: 'No se puede reagendar una cita hacia una fecha u hora pasada' },
+          { status: 400 }
+        )
+      }
+    }
+
     // 4. Construir objeto solo con campos que llegaron
     const updates: Record<string, unknown> = {}
     if (estado !== undefined) updates.estado = estado

@@ -69,7 +69,13 @@ function FormularioNuevaCita({ onCerrar, onCreada, fechaInicial }: Omit<Props, '
   const [nuevoNombre, setNuevoNombre] = useState('')
   const [nuevoTelefono, setNuevoTelefono] = useState('')
   const [peluqueroId, setPeluqueroId] = useState('')
-  const [fecha, setFecha] = useState(() => fechaInicial ?? hoyLocal())
+  const [fecha, setFecha] = useState(() => {
+  const hoy = hoyLocal()
+
+    return fechaInicial && fechaInicial >= hoy
+      ? fechaInicial
+      : hoy
+  })
   const [hora, setHora] = useState('10:00')
   const [serviciosElegidos, setServiciosElegidos] = useState<string[]>([])
   const [notas, setNotas] = useState('')
@@ -143,6 +149,10 @@ function FormularioNuevaCita({ onCerrar, onCreada, fechaInicial }: Omit<Props, '
 
     const inicio = new Date(`${fecha}T${hora}`)
     if (Number.isNaN(inicio.getTime())) return setError('La fecha u hora no es válida')
+    
+    if (inicio.getTime() <= Date.now()) {
+      return setError('No puedes crear una cita en una fecha u hora pasada')
+    }
 
     setGuardando(true)
     setError('')
@@ -308,6 +318,7 @@ function FormularioNuevaCita({ onCerrar, onCreada, fechaInicial }: Omit<Props, '
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
+                min={hoyLocal()}
                 className={INPUT}
               />
             </div>
